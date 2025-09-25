@@ -1,0 +1,126 @@
+config:
+  target: 'http://localhost:8080'
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm up phase"
+    - duration: 120
+      arrivalRate: 10
+      name: "Steady load"
+    - duration: 60
+      arrivalRate: 20
+      name: "Peak load"
+  processor: "./load-test-processor.js"
+
+scenarios:
+  - name: "Authentication flow"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/auth/register"
+          json:
+            email: "test{{ $randomInt(1, 10000) }}@example.com"
+            password: "TestPassword123!"
+            firstName: "Test"
+            lastName: "User"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "test{{ $randomInt(1, 10000) }}@example.com"
+            password: "TestPassword123!"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - get:
+          url: "/api/auth/user"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+  - name: "Assessment workflow"
+    weight: 40
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "loadtest@example.com"
+            password: "LoadTest123!"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - post:
+          url: "/api/assessments"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            title: "Load Test Assessment {{ $randomInt(1, 1000) }}"
+            description: "Performance testing assessment"
+          capture:
+            - json: "$.id"
+              as: "assessmentId"
+      - post:
+          url: "/api/assessments/{{ assessmentId }}/payment"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            paymentMethodId: "pm_card_visa"
+            amount: 2500
+      - get:
+          url: "/api/assessments/{{ assessmentId }}"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+  - name: "File operations"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "loadtest@example.com"
+            password: "LoadTest123!"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - post:
+          url: "/api/s3/upload"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            fileName: "test-document-{{ $randomInt(1, 1000) }}.pdf"
+            contentType: "application/pdf"
+            fileSize: 1048576
+          capture:
+            - json: "$.uploadUrl"
+              as: "uploadUrl"
+            - json: "$.objectKey"
+              as: "objectKey"
+      - get:
+          url: "/api/s3/download/{{ objectKey }}"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+  - name: "Database queries"
+    weight: 10
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "loadtest@example.com"
+            password: "LoadTest123!"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - get:
+          url: "/api/assessments"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - get:
+          url: "/api/users/profile"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - get:
+          url: "/api/agents"
+          headers:
+            Authorization: "Bearer {{ authToken }}"

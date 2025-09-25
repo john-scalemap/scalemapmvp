@@ -1,0 +1,17 @@
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+.vercel
+
+# CDK
+infrastructure/cdk.out/
+infrastructure/.cdk.staging/
+node_modules/
+.DS_Store
+.postgres-data/
+build-artifacts/
+dist/
+.env.local
+.env.production

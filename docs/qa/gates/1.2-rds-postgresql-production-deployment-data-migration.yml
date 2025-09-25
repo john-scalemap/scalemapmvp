@@ -1,0 +1,104 @@
+# Quality Gate Decision - Story 1.2
+schema: 1
+story: "1.2"
+story_title: "RDS PostgreSQL Production Deployment & Data Migration"
+gate: "CONCERNS"
+status_reason: "RDS infrastructure is functionally deployed with proper network isolation and encryption, but critical security gap with missing secret rotation and lack of infrastructure tests prevent production readiness."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-09-23T00:00:00Z"
+
+waiver: { active: false }
+
+top_issues:
+  - id: "SEC-002"
+    severity: high
+    finding: "Database credential rotation not enabled - Task 2.4 unchecked, no RotationSchedule found in DatabaseStack"
+    suggested_action: "Implement automated secret rotation using AWS Lambda rotation function or RDS-managed rotation (30-day schedule)"
+    suggested_owner: "dev"
+
+  - id: "TEST-002"
+    severity: medium
+    finding: "Zero infrastructure test coverage for DatabaseStack - only placeholder test exists"
+    suggested_action: "Add CDK Template assertions validating RDS configuration, security groups, and backup settings"
+    suggested_owner: "dev"
+
+  - id: "INFRA-001"
+    severity: medium
+    finding: "Backup window (02:00-03:00) overlaps maintenance window (sun:03:00-sun:05:00) at 03:00 UTC"
+    suggested_action: "Change backup window to 01:00-02:00 or adjust maintenance to sun:04:00-sun:06:00"
+    suggested_owner: "dev"
+
+  - id: "SEC-003"
+    severity: low
+    finding: "SSL enforced via connection string but no database parameter group with rds.force_ssl=1"
+    suggested_action: "Add RDS parameter group to enforce SSL at database level for defense-in-depth"
+    suggested_owner: "dev"
+
+  - id: "PERF-001"
+    severity: low
+    finding: "Connection pool in server/db.ts uses default settings without explicit max: 10 per architecture"
+    suggested_action: "Add explicit max: 10 to pg Pool configuration for clarity and maintainability"
+    suggested_owner: "dev"
+
+risk_summary:
+  totals: { critical: 0, high: 1, medium: 2, low: 2 }
+  highest: "high"
+  recommendations:
+    must_fix:
+      - "Enable automated secret rotation for database credentials (SEC-002)"
+      - "Add infrastructure tests for DatabaseStack (TEST-002)"
+      - "Fix backup/maintenance window overlap (INFRA-001)"
+    monitor:
+      - "Consider database parameter group for SSL enforcement (SEC-003)"
+      - "Explicitly configure connection pool settings (PERF-001)"
+
+quality_score: 70
+expires: "2025-10-07T00:00:00Z"
+
+evidence:
+  tests_reviewed: 0
+  infrastructure_tests_added: 0
+  manual_verifications: 7
+  risks_identified: 5
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7]
+    ac_gaps: []
+  integration_verified:
+    - "IV1: Schema Integrity - N/A (no staging environment)"
+    - "IV2: Data Migration - N/A (fresh database)"
+    - "IV3: Connection Pool Testing - 10 concurrent connections successful"
+
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: "Critical gap: secret rotation not enabled. SSL connection verified but not enforced at DB level. Encryption at rest and network isolation properly implemented."
+  performance:
+    status: PASS
+    notes: "db.t3.micro appropriate for Free Tier and initial load. Connection pool testing passed. Backup window in low-traffic period."
+  reliability:
+    status: CONCERNS
+    notes: "7-day backup retention configured but backup/maintenance window overlap could cause failures. Multi-AZ disabled (acceptable for Free Tier). Snapshot-on-delete protection enabled."
+  maintainability:
+    status: CONCERNS
+    notes: "Clean CDK code with good documentation but zero infrastructure test coverage severely impacts maintainability and change confidence."
+
+recommendations:
+  immediate:
+    - action: "Enable automated secret rotation for database credentials (30-day schedule)"
+      refs: ["infrastructure/lib/stacks/database.ts:37", "Story 1.1 security requirement"]
+    - action: "Add CDK Template assertions for DatabaseStack configuration validation"
+      refs: ["infrastructure/test/infrastructure.test.ts"]
+    - action: "Fix backup/maintenance window overlap - shift backup to 01:00-02:00"
+      refs: ["infrastructure/lib/stacks/database.ts:40-41"]
+  future:
+    - action: "Add RDS parameter group with rds.force_ssl=1 for SSL enforcement"
+      refs: ["infrastructure/lib/stacks/database.ts:21-44"]
+    - action: "Explicitly set max: 10 in pg Pool configuration per architecture requirement"
+      refs: ["server/db.ts:11-14"]
+    - action: "Consider Multi-AZ deployment when moving beyond Free Tier"
+      refs: ["infrastructure/lib/stacks/database.ts:36"]
+
+history:
+  - at: "2025-09-23T00:00:00Z"
+    gate: CONCERNS
+    note: "Initial QA review - critical security gap (secret rotation) and missing infrastructure tests prevent production readiness"

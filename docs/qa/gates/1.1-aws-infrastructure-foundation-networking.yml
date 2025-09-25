@@ -1,0 +1,70 @@
+# Quality Gate Decision - Story 1.1
+schema: 1
+story: "1.1"
+story_title: "AWS Infrastructure Foundation & Networking Setup"
+gate: "CONCERNS"
+status_reason: "Infrastructure is well-architected and functionally complete, but critical security vulnerability with plaintext secrets in CDK code requires immediate remediation before production deployment."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-09-23T00:00:00Z"
+
+waiver: { active: false }
+
+top_issues:
+  - id: "SEC-001"
+    severity: high
+    finding: "Secrets stored using SecretValue.unsafePlainText() in CDK code (networking.ts:85-115)"
+    suggested_action: "Rotate all exposed API keys and refactor to use Secret.fromSecretNameV2() or external parameter references"
+    suggested_owner: "dev"
+
+risk_summary:
+  totals: { critical: 0, high: 1, medium: 0, low: 0 }
+  highest: "high"
+  recommendations:
+    must_fix:
+      - "Rotate OpenAI and Stripe API keys immediately"
+      - "Refactor secret management to reference pre-created secrets instead of embedding values"
+      - "Verify .gitignore excludes cdk.out/ directory"
+    monitor:
+      - "Consider implementing automated secret rotation for database credentials"
+
+quality_score: 90
+
+evidence:
+  tests_reviewed: 0
+  integration_verified: 3
+  risks_identified: 1
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: "Critical issue: plaintext secrets in CDK code. Other security controls (security groups, network isolation) are properly implemented."
+  performance:
+    status: PASS
+    notes: "Multi-AZ NAT Gateway provides high-bandwidth egress. VPC sizing supports future growth."
+  reliability:
+    status: PASS
+    notes: "Multi-AZ deployment, proper subnet isolation, comprehensive CloudFormation outputs for cross-stack dependencies."
+  maintainability:
+    status: PASS
+    notes: "Clean TypeScript code, modular stack design, proper use of CDK L2 constructs, comprehensive exports."
+
+recommendations:
+  immediate:
+    - action: "Rotate all exposed API keys (OpenAI, Stripe)"
+      refs: ["networking.ts:93-95", "networking.ts:101-103"]
+    - action: "Refactor secret management to use Secret.fromSecretNameV2() pattern"
+      refs: ["networking.ts:82-116"]
+    - action: "Verify CDK synthesized output is gitignored"
+      refs: [".gitignore"]
+  future:
+    - action: "Implement automated secret rotation for database credentials"
+      refs: ["networking.ts:82-88"]
+    - action: "Add KMS customer-managed keys for log group encryption"
+      refs: ["networking.ts:118-128"]
+    - action: "Implement VPC Flow Logs for network traffic analysis"
+      refs: ["networking.ts:26-42"]
+    - action: "Consider NAT instance for dev environments to reduce costs"
+      refs: ["networking.ts:29"]

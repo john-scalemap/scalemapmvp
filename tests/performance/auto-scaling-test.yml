@@ -1,0 +1,81 @@
+# Auto-scaling Configuration Test for AWS Elastic Beanstalk
+config:
+  target: 'http://localhost:8080'
+  phases:
+    # Phase 1: Baseline load
+    - duration: 120
+      arrivalRate: 5
+      name: "Baseline load"
+    # Phase 2: Gradual increase to trigger scaling
+    - duration: 180
+      arrivalRate: 15
+      rampTo: 30
+      name: "Scale-up trigger"
+    # Phase 3: Peak load to test scaling capacity
+    - duration: 240
+      arrivalRate: 30
+      name: "Peak load sustained"
+    # Phase 4: Scale down test
+    - duration: 180
+      arrivalRate: 30
+      rampTo: 5
+      name: "Scale-down trigger"
+    # Phase 5: Return to baseline
+    - duration: 120
+      arrivalRate: 5
+      name: "Baseline recovery"
+
+scenarios:
+  - name: "Mixed workload for scaling test"
+    weight: 100
+    flow:
+      # Authentication requests (20%)
+      - think: 1
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "scaletest@example.com"
+            password: "ScaleTest123!"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+
+      # Assessment operations (40%)
+      - think: 2
+      - post:
+          url: "/api/assessments"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            title: "Scale Test Assessment"
+            description: "Testing auto-scaling behavior"
+          capture:
+            - json: "$.id"
+              as: "assessmentId"
+
+      - get:
+          url: "/api/assessments/{{ assessmentId }}"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+      # File operations (20%)
+      - think: 1
+      - post:
+          url: "/api/s3/upload"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            fileName: "scale-test-doc.pdf"
+            contentType: "application/pdf"
+            fileSize: 2097152
+
+      # Database queries (20%)
+      - get:
+          url: "/api/assessments"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+      - get:
+          url: "/api/agents"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
