@@ -7,7 +7,7 @@ phases:
       - export AWS_DEFAULT_REGION=eu-west-1
       - export AWS_ACCOUNT_ID=884337373956
       - export IMAGE_REPO_NAME=scalemap-api
-      - export IMAGE_TAG=v1.6
+      - export IMAGE_TAG=v1.7
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
       - export REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
       - echo "Repository URI $REPOSITORY_URI"
@@ -17,7 +17,7 @@ phases:
     commands:
       - echo Build started on `date`
       - echo Building the Docker image...
-      - docker build --build-arg VITE_COGNITO_USER_POOL_ID=eu-west-1_iGWQ7N6sH --build-arg VITE_COGNITO_CLIENT_ID=4oh46v98dsu1c8csu4tn6ddgq1 --build-arg VITE_AWS_REGION=eu-west-1 --build-arg VITE_STRIPE_PUBLIC_KEY=pk_test_51S9UtWPMQGIPehV3Y1s3L9UT9UoF5IP6vNcE3a93cS2Quzf6WiiDywwVVc3vGAOfYuC3FqxduxwX0hV7uRXsqM4H00KDbCClOA -t $REPOSITORY_URI:$IMAGE_TAG -f server/Dockerfile .
+      - docker build --build-arg VITE_COGNITO_USER_POOL_ID=eu-west-1_iGWQ7N6sH --build-arg VITE_COGNITO_CLIENT_ID=6e7ct8tmbmhgvva2ngdn5hi6v1 --build-arg VITE_AWS_REGION=eu-west-1 --build-arg VITE_STRIPE_PUBLIC_KEY=pk_test_51S9UtWPMQGIPehV3Y1s3L9UT9UoF5IP6vNcE3a93cS2Quzf6WiiDywwVVc3vGAOfYuC3FqxduxwX0hV7uRXsqM4H00KDbCClOA --build-arg COGNITO_USER_POOL_ID=eu-west-1_iGWQ7N6sH --build-arg COGNITO_CLIENT_ID=6e7ct8tmbmhgvva2ngdn5hi6v1 --build-arg AWS_REGION=eu-west-1 -t $REPOSITORY_URI:$IMAGE_TAG -f server/Dockerfile .
       - docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest
       - echo "Checking image size..."
       - docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}" | grep $IMAGE_REPO_NAME || true
@@ -40,14 +40,16 @@ phases:
       # Upload to S3 with optimized cache headers
       - echo "Uploading frontend to S3..."
       - export S3_BUCKET=scalemap-frontend-prod-884337373956
-      - aws s3 sync ./frontend-dist s3://$S3_BUCKET/ --delete --cache-control "public,max-age=31536000,immutable" --exclude "index.html"
-      - aws s3 cp ./frontend-dist/index.html s3://$S3_BUCKET/index.html --cache-control "public,max-age=0,must-revalidate"
+      # Upload static assets (JS, CSS, images) with long cache, excluding ALL HTML files
+      - aws s3 sync ./frontend-dist s3://$S3_BUCKET/ --delete --cache-control "public,max-age=31536000,immutable" --exclude "*.html" --exclude "index.html"
+      # Upload ALL HTML files with short cache (60 seconds for quick updates)
+      - aws s3 sync ./frontend-dist s3://$S3_BUCKET/ --cache-control "public,max-age=60,must-revalidate" --exclude "*" --include "*.html"
       - echo "S3 upload complete"
 
-      # Invalidate CloudFront cache
+      # Comprehensive CloudFront invalidation for HTML files
       - echo "Invalidating CloudFront cache..."
       - export CLOUDFRONT_DISTRIBUTION_ID=E1OGYBMF9QDMX9
-      - aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DISTRIBUTION_ID --paths "/index.html"
+      - aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DISTRIBUTION_ID --paths "/*.html" "/index.html" "/"
       - echo "CloudFront invalidation triggered"
 
       # Push Docker images
