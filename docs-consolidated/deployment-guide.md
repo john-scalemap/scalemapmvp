@@ -100,10 +100,12 @@ echo "Building version: $VERSION_TAG"
 
 # Build Docker image
 docker build \
+  --build-arg VITE_API_URL=http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com \
   --build-arg VITE_COGNITO_USER_POOL_ID=eu-west-1_iGWQ7N6sH \
   --build-arg VITE_COGNITO_CLIENT_ID=6e7ct8tmbmhgvva2ngdn5hi6v1 \
   --build-arg VITE_AWS_REGION=eu-west-1 \
   --build-arg VITE_STRIPE_PUBLIC_KEY=pk_test_51S9UtWPMQGIPehV3Y1s3L9UT9UoF5IP6vNcE3a93cS2Quzf6WiiDywwVVc3vGAOfYuC3FqxduxwX0hV7uRXsqM4H00KDbCClOA \
+  --build-arg VITE_BUILD_VERSION=$VERSION_TAG \
   -t scalemap-api:$VERSION_TAG \
   -t scalemap-api:latest \
   -f server/Dockerfile .

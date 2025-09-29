@@ -47,7 +47,7 @@ LOG_LEVEL=info
 ```bash
 # Cognito Configuration (PUBLIC - embedded in build)
 VITE_COGNITO_USER_POOL_ID=eu-west-1_iGWQ7N6sH
-VITE_COGNITO_CLIENT_ID=4oh46v98dsu1c8csu4tn6ddgq1
+VITE_COGNITO_CLIENT_ID=6e7ct8tmbmhgvva2ngdn5hi6v1
 VITE_AWS_REGION=eu-west-1
 
 # Stripe Configuration (PUBLIC - embedded in build)
@@ -79,11 +79,11 @@ STRIPE_SECRET_KEY=sk_test_...  # Stripe test key
 
 # Cognito Configuration (Same as production for consistency)
 COGNITO_USER_POOL_ID=eu-west-1_iGWQ7N6sH
-COGNITO_CLIENT_ID=4oh46v98dsu1c8csu4tn6ddgq1
+COGNITO_CLIENT_ID=6e7ct8tmbmhgvva2ngdn5hi6v1
 
 # Frontend Development
 VITE_COGNITO_USER_POOL_ID=eu-west-1_iGWQ7N6sH
-VITE_COGNITO_CLIENT_ID=4oh46v98dsu1c8csu4tn6ddgq1
+VITE_COGNITO_CLIENT_ID=6e7ct8tmbmhgvva2ngdn5hi6v1
 VITE_AWS_REGION=eu-west-1
 VITE_STRIPE_PUBLIC_KEY=pk_test_51S9UtWPMQGIPehV3Y1s3L9UT9UoF5IP6vNcE3a93cS2Quzf6WiiDywwVVc3vGAOfYuC3FqxduxwX0hV7uRXsqM4H00KDbCClOA
 VITE_API_URL=http://localhost:5000

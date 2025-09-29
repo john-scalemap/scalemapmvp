@@ -20,14 +20,14 @@ REGION=eu-west-1
 USER_POOL_ARN=arn:aws:cognito-idp:eu-west-1:884337373956:userpool/eu-west-1_iGWQ7N6sH
 
 # App Client Configuration
-CLIENT_ID=4oh46v98dsu1c8csu4tn6ddgq1
+CLIENT_ID=6e7ct8tmbmhgvva2ngdn5hi6v1
 CLIENT_NAME=ScaleMapWebClient
 ```
 
 ### **App Client Settings (Critical)**
 ```json
 {
-  "ClientId": "4oh46v98dsu1c8csu4tn6ddgq1",
+  "ClientId": "6e7ct8tmbmhgvva2ngdn5hi6v1",
   "ClientName": "ScaleMapWebClient",
   "GenerateSecret": false,           // ✅ MUST be false for browser apps
   "RefreshTokenValidity": 30,
@@ -60,7 +60,7 @@ import { CognitoUserPool, CognitoUser, AuthenticationDetails } from 'amazon-cogn
 // ✅ CORRECT: No clientSecret for browser apps
 const poolData = {
   UserPoolId: 'eu-west-1_iGWQ7N6sH',
-  ClientId: '4oh46v98dsu1c8csu4tn6ddgq1'
+  ClientId: '6e7ct8tmbmhgvva2ngdn5hi6v1'
   // NO clientSecret property - this is correct for browser apps
 };
 
@@ -100,7 +100,7 @@ export const authenticateUser = (username: string, password: string): Promise<an
 ```bash
 # .env or build environment
 VITE_COGNITO_USER_POOL_ID=eu-west-1_iGWQ7N6sH
-VITE_COGNITO_CLIENT_ID=4oh46v98dsu1c8csu4tn6ddgq1
+VITE_COGNITO_CLIENT_ID=6e7ct8tmbmhgvva2ngdn5hi6v1
 VITE_AWS_REGION=eu-west-1
 
 # ❌ NEVER include these in frontend builds:
@@ -125,7 +125,7 @@ const cognitoClient = new CognitoIdentityProviderClient({
 });
 
 const USER_POOL_ID = 'eu-west-1_iGWQ7N6sH';
-const CLIENT_ID = '4oh46v98dsu1c8csu4tn6ddgq1';
+const CLIENT_ID = '6e7ct8tmbmhgvva2ngdn5hi6v1';
 
 // JWT verification setup
 const client = jwksClient({
@@ -162,7 +162,7 @@ function getKey(header: any, callback: any) {
 // ❌ WRONG - Never do this in browser apps
 const poolData = {
   UserPoolId: 'eu-west-1_iGWQ7N6sH',
-  ClientId: '4oh46v98dsu1c8csu4tn6ddgq1',
+  ClientId: '6e7ct8tmbmhgvva2ngdn5hi6v1',
   ClientSecret: 'some-secret'  // ❌ SECURITY RISK
 };
 ```
@@ -213,7 +213,7 @@ const secretHash = crypto
 # Verify app client settings
 aws cognito-idp describe-user-pool-client \
   --user-pool-id eu-west-1_iGWQ7N6sH \
-  --client-id 4oh46v98dsu1c8csu4tn6ddgq1 \
+  --client-id 6e7ct8tmbmhgvva2ngdn5hi6v1 \
   --region eu-west-1 \
   --query 'UserPoolClient.{GenerateSecret:GenerateSecret,ExplicitAuthFlows:ExplicitAuthFlows}'
 
@@ -257,18 +257,15 @@ grep -r "eu-west-1_iGWQ7N6sH" dist/assets/*.js
 
 ### **If App Client Has Secret Generation Enabled**
 ```bash
-# Create new app client without secret
-aws cognito-idp create-user-pool-client \
+# Update existing app client (ScaleMapWebClient)
+aws cognito-idp update-user-pool-client \
   --user-pool-id eu-west-1_iGWQ7N6sH \
-  --client-name ScaleMapWebClient \
+  --client-id 6e7ct8tmbmhgvva2ngdn5hi6v1 \
   --generate-secret false \
   --explicit-auth-flows ALLOW_USER_SRP_AUTH ALLOW_REFRESH_TOKEN_AUTH \
-  --prevent-user-existence-errors ENABLED \
-  --enable-token-revocation \
   --region eu-west-1
 
-# Update frontend to use new client ID
-# Update backend to use new client ID
+# This ensures the existing app client has correct settings
 ```
 
 ### **If Frontend Shows Secret Hash Errors**
@@ -285,13 +282,13 @@ aws cognito-idp create-user-pool-client \
 echo "Checking current app client configuration..."
 aws cognito-idp describe-user-pool-client \
   --user-pool-id eu-west-1_iGWQ7N6sH \
-  --client-id 4oh46v98dsu1c8csu4tn6ddgq1 \
+  --client-id 6e7ct8tmbmhgvva2ngdn5hi6v1 \
   --region eu-west-1
 
 echo "If GenerateSecret is true, run the following:"
 echo "aws cognito-idp update-user-pool-client \\"
 echo "  --user-pool-id eu-west-1_iGWQ7N6sH \\"
-echo "  --client-id 4oh46v98dsu1c8csu4tn6ddgq1 \\"
+echo "  --client-id 6e7ct8tmbmhgvva2ngdn5hi6v1 \\"
 echo "  --generate-secret false \\"
 echo "  --region eu-west-1"
 ```

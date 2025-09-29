@@ -17,6 +17,49 @@
 
 ## 1. **Authentication Issues**
 
+### **🚨 Dashboard Not Loading After Login / Authentication Loop**
+
+**Symptoms:**
+- Login returns 200 OK but dashboard doesn't load
+- Redirected back to login page after successful authentication
+- Browser shows login page when accessing `/dashboard`
+- 401 Unauthorized errors on `/api/auth/user` after login
+
+**Root Causes & Fixes:**
+
+**Issue #1: Race Condition in Authentication State (95% confidence)**
+- LoginForm redirects before user data is loaded
+- `useAuth` hook requires both token AND user data to consider user authenticated
+- **Fix:** Modified `client/src/components/auth/LoginForm.tsx:31` to await `queryClient.fetchQuery()` before redirecting
+
+**Issue #2: Hard Redirects Destroying React State (85% confidence)**
+- Protected routes using `window.location.href` cause full page reloads
+- React state destroyed, authentication resets
+- **Fix:** Replaced all `window.location.href` with router `setLocation()` in:
+  - `client/src/pages/dashboard.tsx:60`
+  - `client/src/pages/assessment.tsx`
+  - `client/src/pages/assessment-detail.tsx`
+  - `client/src/pages/profile.tsx`
+
+**Issue #3: Frontend Calling Wrong API Endpoint (70% confidence)**
+- Frontend making relative API calls (`/api/auth/user`) to CloudFront instead of backend ALB
+- queryClient not using `VITE_API_URL` environment variable
+- **Fix:** Modified `client/src/lib/queryClient.ts:7` to prepend `API_BASE_URL` to API calls
+- **Related:** See "API Endpoints Not Updating" section below
+
+**Verification:**
+```bash
+# Test authentication flow
+# 1. Login should wait for user data before redirecting
+# 2. Dashboard should use router navigation, not window.location.href
+# 3. API calls should go to backend ALB, not CloudFront
+
+# Check browser console for:
+# - No race condition errors
+# - Router navigation (not full page reload)
+# - API calls to correct backend URL
+```
+
 ### **🚨 Error: "Unable to verify secret hash for client"**
 
 **Symptoms:**
@@ -31,14 +74,14 @@
 # Check current app client configuration
 aws cognito-idp describe-user-pool-client \
   --user-pool-id eu-west-1_iGWQ7N6sH \
-  --client-id 4oh46v98dsu1c8csu4tn6ddgq1 \
+  --client-id 6e7ct8tmbmhgvva2ngdn5hi6v1 \
   --region eu-west-1 \
   --query 'UserPoolClient.GenerateSecret'
 
 # If returns "true", fix it:
 aws cognito-idp update-user-pool-client \
   --user-pool-id eu-west-1_iGWQ7N6sH \
-  --client-id 4oh46v98dsu1c8csu4tn6ddgq1 \
+  --client-id 6e7ct8tmbmhgvva2ngdn5hi6v1 \
   --generate-secret false \
   --region eu-west-1
 
@@ -58,7 +101,7 @@ echo "✅ Cognito app client fixed - secret generation disabled"
 # Update app client with correct auth flows
 aws cognito-idp update-user-pool-client \
   --user-pool-id eu-west-1_iGWQ7N6sH \
-  --client-id 4oh46v98dsu1c8csu4tn6ddgq1 \
+  --client-id 6e7ct8tmbmhgvva2ngdn5hi6v1 \
   --explicit-auth-flows ALLOW_USER_SRP_AUTH ALLOW_REFRESH_TOKEN_AUTH \
   --region eu-west-1
 
@@ -133,6 +176,10 @@ echo "Tell users to do: Ctrl+F5 (Windows) or Cmd+Shift+R (Mac)"
 - Frontend built with wrong API URL
 - CORS errors from frontend to backend
 - API calls going to localhost in production
+- Frontend making relative API calls to CloudFront instead of backend ALB
+- 401 Unauthorized errors on `/api/auth/user` endpoint
+
+**Root Cause:** `.dockerignore` was located in `server/` subdirectory instead of project root, causing `.env` file to be copied during Docker build and override build args
 
 **Immediate Fix:**
 ```bash
@@ -140,17 +187,83 @@ echo "Tell users to do: Ctrl+F5 (Windows) or Cmd+Shift+R (Mac)"
 curl -s https://d2nr28qnjfjgb5.cloudfront.net/assets/index-*.js | \
   grep -o 'http://[^"]*' | grep -E '(localhost|elb\.amazonaws\.com)'
 
-# If wrong, rebuild and redeploy
-export VITE_API_URL="http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com"
-npm run build
+# If no output, VITE_API_URL was not embedded during build
+# This means frontend is making relative calls (/api/auth/user) to CloudFront
 
-# Check build output
-grep -r "localhost" dist/ && echo "❌ Still has localhost" || echo "✅ No localhost found"
+# Solution 1: Ensure .dockerignore exists in project root (NOT server/ subdirectory)
+# Create .dockerignore in project root with:
+cat > .dockerignore <<'EOF'
+node_modules
+.git
+.gitignore
+*.test.ts
+*.spec.ts
+.env
+.env.*
+!.env.production
+coverage
+.vscode
+.idea
+*.log
+npm-debug.log*
+.DS_Store
+.eslintrc
+.prettierrc
+jest.config.js
+.postgres-data
+tests
+.bmad-core
+.claude
+docs
+docs-consolidated
+*.md
+!README.md
+EOF
 
-# Redeploy frontend
-aws s3 sync dist s3://scalemap-frontend-prod-884337373956/ --delete
-aws cloudfront create-invalidation --distribution-id E1OGYBMF9QDMX9 --paths "/*"
+# Solution 2: Verify Dockerfile has all required ARGs and passes them to build
+# Check server/Dockerfile has:
+#   ARG VITE_API_URL
+#   ARG VITE_BUILD_VERSION
+#   ENV VITE_API_URL=$VITE_API_URL
+#   ENV VITE_BUILD_VERSION=$VITE_BUILD_VERSION
+#   RUN VITE_API_URL=$VITE_API_URL \
+#       VITE_BUILD_VERSION=$VITE_BUILD_VERSION \
+#       ... npm run build
+
+# Solution 3: Check deployment script passes all build args:
+docker build \
+  --build-arg VITE_API_URL="http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com" \
+  --build-arg VITE_COGNITO_USER_POOL_ID="eu-west-1_iGWQ7N6sH" \
+  --build-arg VITE_COGNITO_CLIENT_ID="6e7ct8tmbmhgvva2ngdn5hi6v1" \
+  --build-arg VITE_AWS_REGION="eu-west-1" \
+  --build-arg VITE_BUILD_VERSION="test" \
+  -f server/Dockerfile \
+  -t scalemap-api:test .
+
+# Verify environment variable is embedded
+docker run --rm scalemap-api:test sh -c 'grep -r "elb\.amazonaws\.com" /app/dist/public/assets/' && \
+  echo "✅ API URL embedded" || echo "❌ API URL NOT embedded"
+
+# If still failing, check client/src/lib/queryClient.ts uses:
+#   const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+#   const fullUrl = url.startsWith('/api') ? `${API_BASE_URL}${url}` : url;
 ```
+
+**Verification After Deployment:**
+```bash
+# Check deployed frontend has API URL
+curl -s https://d2nr28qnjfjgb5.cloudfront.net/ | grep -o 'assets/index-[^"]*\.js' | head -1
+# Then check that file for the backend URL
+curl -s https://d2nr28qnjfjgb5.cloudfront.net/assets/index-XXXXXXX.js | \
+  grep -o 'Scalem-Scale.*elb\.amazonaws\.com' && \
+  echo "✅ Backend URL found in bundle" || \
+  echo "❌ Backend URL NOT in bundle - rebuild required"
+```
+
+**Related Files:**
+- `client/src/lib/queryClient.ts:7` - API_BASE_URL definition
+- `server/Dockerfile:8-12` - Build arg declarations
+- `docs-consolidated/scripts/deploy-production.sh` - Build command with args
 
 ---
 
@@ -611,4 +724,9 @@ echo "Health check complete"
 ---
 
 **Changelog:**
+- 2025-09-29: Fixed .dockerignore location issue preventing VITE_API_URL embedding
+- 2025-09-29: Added VITE_BUILD_VERSION to Dockerfile ARG and RUN commands
+- 2025-09-29: Corrected Cognito Client ID to 6e7ct8tmbmhgvva2ngdn5hi6v1 across all docs
+- 2025-09-29: Added authentication flow issues (race conditions, hard redirects, API endpoint)
+- 2025-09-29: Added VITE_API_URL Docker build embedding issue
 - 2025-09-29: Initial troubleshooting guide created with proven solutions
