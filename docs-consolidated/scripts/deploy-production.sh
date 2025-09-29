@@ -7,7 +7,7 @@ set -e  # Exit on any error
 
 # Load configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Configuration
 export VERSION_TAG="v$(date +%Y%m%d-%H%M%S)"
