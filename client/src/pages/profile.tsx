@@ -20,7 +20,7 @@ import {
   Factory,
   CheckIcon
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 const profileSchema = z.object({
   companyName: z.string().min(1, "Company name is required"),
@@ -64,21 +64,19 @@ export default function Profile() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated - using router navigation
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
+        title: "Session Required",
+        description: "Please log in to edit your profile.",
         variant: "destructive",
       });
-      setTimeout(() => {
-        window.location.href = "/auth";
-      }, 500);
-      return;
+      setLocation('/auth');
     }
-  }, [isAuthenticated, authLoading, toast]);
+  }, [isAuthenticated, authLoading, toast, setLocation]);
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -117,13 +115,11 @@ export default function Profile() {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: "Session Expired",
+          description: "Your session has expired. Please log in again.",
           variant: "destructive",
         });
-        setTimeout(() => {
-          window.location.href = "/auth";
-        }, 500);
+        setLocation('/auth');
         return;
       }
       toast({

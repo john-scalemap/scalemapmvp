@@ -24,20 +24,17 @@ export default function Assessment() {
   const queryClient = useQueryClient();
   const [currentAssessmentId, setCurrentAssessmentId] = useState<string | null>(null);
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated - using router navigation
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
+        title: "Session Required",
+        description: "Please log in to start an assessment.",
         variant: "destructive",
       });
-      setTimeout(() => {
-        window.location.href = "/auth";
-      }, 500);
-      return;
+      setLocation('/auth');
     }
-  }, [isAuthenticated, authLoading, toast]);
+  }, [isAuthenticated, authLoading, toast, setLocation]);
 
   // Check for existing active assessments
   const { data: assessments = [] } = useQuery({
@@ -73,13 +70,11 @@ export default function Assessment() {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: "Session Expired",
+          description: "Your session has expired. Please log in again.",
           variant: "destructive",
         });
-        setTimeout(() => {
-          window.location.href = "/auth";
-        }, 500);
+        setLocation('/auth');
         return;
       }
       toast({

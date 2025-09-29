@@ -7,9 +7,10 @@ import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
 import Auth from "@/pages/auth";
 import Home from "@/pages/home";
+import Dashboard from "@/pages/dashboard";
 import Profile from "@/pages/profile";
 import Assessment from "@/pages/assessment";
-import Dashboard from "@/pages/dashboard";
+import AssessmentDetail from "@/pages/assessment-detail";
 import Checkout from "@/pages/checkout";
 import NotFound from "@/pages/not-found";
 
@@ -23,13 +24,17 @@ function Router() {
           <Route path="/" component={Landing} />
           <Route path="/auth" component={Auth} />
           <Route path="/checkout" component={Checkout} />
+          <Route path="/dashboard" component={Auth} /> {/* Redirect to auth if not authenticated */}
+          <Route path="/assessment/:id" component={Auth} /> {/* Redirect to auth if not authenticated */}
         </>
       ) : (
         <>
-          <Route path="/" component={Home} />
+          <Route path="/" component={Home} /> {/* Redirect page */}
+          <Route path="/dashboard" component={Dashboard} /> {/* Main SaaS dashboard */}
           <Route path="/profile" component={Profile} />
-          <Route path="/assessment" component={Assessment} />
-          <Route path="/dashboard/:id" component={Dashboard} />
+          <Route path="/assessment" component={Assessment} /> {/* New assessment */}
+          <Route path="/assessment/:id" component={AssessmentDetail} /> {/* Assessment details */}
+          <Route path="/dashboard/:id" component={AssessmentDetail} /> {/* Legacy route redirect */}
           <Route path="/checkout" component={Checkout} />
         </>
       )}

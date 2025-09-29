@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
+import { useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 
 interface LoginFormProps {
@@ -19,6 +20,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
   const [error, setError] = useState<string | null>(null);
 
   const { signIn } = useAuth();
+  const queryClient = useQueryClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +28,15 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
     setError(null);
 
     try {
+      // Step 1: Sign in and get token
       await signIn(email, password);
+
+      // Step 2: Trigger user data fetch and wait for it to complete
+      await queryClient.fetchQuery({
+        queryKey: ["/api/auth/user"],
+      });
+
+      // Step 3: Only after user data is loaded, redirect to dashboard
       onSuccess?.();
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.');

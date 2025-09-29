@@ -1,5 +1,8 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// Get API base URL from environment variable
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -22,7 +25,10 @@ export async function apiRequest(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(url, {
+  // Prepend API base URL if url starts with /api
+  const fullUrl = url.startsWith('/api') ? `${API_BASE_URL}${url}` : url;
+
+  const res = await fetch(fullUrl, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
@@ -51,7 +57,13 @@ export const getQueryFn: <T>(options: {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const res = await fetch(queryKey.join("/") as string, {
+    // Build URL from query key
+    const url = queryKey.join("/") as string;
+
+    // Prepend API base URL if url starts with /api
+    const fullUrl = url.startsWith('/api') ? `${API_BASE_URL}${url}` : url;
+
+    const res = await fetch(fullUrl, {
       credentials: "include",
       headers,
     });
