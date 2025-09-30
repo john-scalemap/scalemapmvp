@@ -6,6 +6,10 @@ import { API_BASE_URL } from "@/lib/queryClient";
 export function useAuth() {
   const queryClient = useQueryClient();
 
+  // Check if we have a token BEFORE the query runs
+  // This prevents the race condition on page refresh
+  const hasToken = cognitoAuth.isAuthenticated();
+
   const { data: user, isLoading } = useQuery<User>({
     queryKey: ["/api/auth/user"],
     queryFn: async () => {
@@ -31,7 +35,7 @@ export function useAuth() {
       return response.json();
     },
     retry: false,
-    enabled: cognitoAuth.isAuthenticated(),
+    enabled: hasToken,
   });
 
   const signOut = async () => {
@@ -42,8 +46,11 @@ export function useAuth() {
 
   return {
     user,
-    isLoading,
-    isAuthenticated: !!user && cognitoAuth.isAuthenticated(),
+    // If we have a token and query is loading, keep isLoading true
+    // This prevents redirect during the user fetch
+    isLoading: hasToken && isLoading,
+    // Only authenticated if we have valid token AND (still loading OR have user data)
+    isAuthenticated: hasToken && (isLoading || !!user),
     signOut,
     signIn: cognitoAuth.signIn.bind(cognitoAuth),
     signUp: cognitoAuth.signUp.bind(cognitoAuth),

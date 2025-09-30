@@ -29,8 +29,8 @@ function Router() {
         </>
       ) : (
         <>
-          <Route path="/" component={Home} /> {/* Redirect page */}
-          <Route path="/dashboard" component={Dashboard} /> {/* Main SaaS dashboard */}
+          <Route path="/" component={Dashboard} /> {/* Main authenticated landing - dashboard */}
+          <Route path="/dashboard" component={Dashboard} /> {/* Dashboard route */}
           <Route path="/profile" component={Profile} />
           <Route path="/assessment" component={Assessment} /> {/* New assessment */}
           <Route path="/assessment/:id" component={AssessmentDetail} /> {/* Assessment details */}
