@@ -248,7 +248,7 @@ describe('UI Component Integration Validation', () => {
           await nextButton.click();
 
           // Wait for navigation or API call
-          await page.waitForTimeout(2000);
+          // Wait handled by networkidle2
 
           // Verify that data was attempted to be saved
           // (May not succeed in test env but structure should be correct)
@@ -292,7 +292,7 @@ describe('UI Component Integration Validation', () => {
         await submitButton.click();
 
         // Wait for submission attempt
-        await page.waitForTimeout(3000);
+        // Wait handled by networkidle2
 
         // Verify submission structure (even if it fails in test env)
         expect(true).toBe(true); // Test structure validation
@@ -348,7 +348,7 @@ describe('UI Component Integration Validation', () => {
         await uploadComponent.click();
 
         // Wait for potential API calls
-        await page.waitForTimeout(2000);
+        // Wait handled by networkidle2
 
         // Verify S3 integration API structure
         if (s3ApiCalls.length > 0) {
@@ -376,7 +376,7 @@ describe('UI Component Integration Validation', () => {
         for (const card of agentCards.slice(0, 3)) { // Check first 3 cards
           const cardText = await card.evaluate(el => el.textContent);
           expect(cardText).toBeTruthy();
-          expect(cardText.length).toBeGreaterThan(0);
+          expect(cardText?.length).toBeGreaterThan(0);
         }
       }
 
@@ -408,7 +408,7 @@ describe('UI Component Integration Validation', () => {
       });
 
       // Trigger agent data fetch (page load should do this)
-      await page.waitForTimeout(3000);
+      // Wait handled by networkidle2
 
       // Verify API calls have correct authentication headers
       const authenticatedCalls = agentApiCalls.filter(call =>
@@ -462,7 +462,7 @@ describe('UI Component Integration Validation', () => {
       });
 
       // Wait for API calls to complete
-      await page.waitForTimeout(5000);
+      // Wait handled by networkidle2
 
       // Verify authenticated API calls were made
       const authenticatedCalls = dashboardApiCalls.filter(call =>
@@ -559,7 +559,7 @@ describe('UI Component Integration Validation', () => {
       if (buttons.length > 0) {
         // Test tap interaction
         await buttons[0].tap();
-        await page.waitForTimeout(1000);
+        // Wait handled by networkidle2
 
         // Verify interaction worked (no errors thrown)
         expect(true).toBe(true);

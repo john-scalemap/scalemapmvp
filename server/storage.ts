@@ -39,6 +39,8 @@ export interface IStorage {
   updateAssessmentStatus(id: string, status: string, progress?: number): Promise<Assessment>;
   updateAssessmentProgress(id: string, progress: number, questionsAnswered?: number): Promise<Assessment>;
   updateAssessmentPayment(assessmentId: string, paymentIntentId: string, amount: string): Promise<Assessment>;
+  updateAssessment(id: string, updates: Partial<Assessment>): Promise<Assessment>;
+  updateAssessmentAnalysis(id: string, analysisData: Record<string, any>): Promise<Assessment>;
   
   // Domain operations
   getAssessmentDomains(assessmentId: string): Promise<AssessmentDomain[]>;
@@ -178,6 +180,48 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(eq(assessments.id, assessmentId))
+      .returning();
+    return assessment;
+  }
+
+  async updateAssessment(id: string, updates: Partial<Assessment>): Promise<Assessment> {
+    // Remove fields that shouldn't be directly updated
+    const { id: _, createdAt, ...safeUpdates } = updates as any;
+
+    const [assessment] = await db
+      .update(assessments)
+      .set({
+        ...safeUpdates,
+        updatedAt: new Date()
+      })
+      .where(eq(assessments.id, id))
+      .returning();
+    return assessment;
+  }
+
+  async updateAssessmentAnalysis(id: string, analysisData: Record<string, any>): Promise<Assessment> {
+    // This method is for updating analysis-specific fields
+    // Since assessments table doesn't have these fields, we'll update what we can
+    const updateData: any = { updatedAt: new Date() };
+
+    // Map analysis data to assessment fields if they exist
+    if (analysisData.triageCompleted !== undefined) {
+      updateData.progress = analysisData.triageCompleted ? 25 : updateData.progress;
+    }
+    if (analysisData.executiveSummaryComplete !== undefined || analysisData.executiveSummaryPath !== undefined) {
+      updateData.executiveSummaryPath = analysisData.executiveSummaryPath;
+    }
+    if (analysisData.detailedAnalysisComplete !== undefined || analysisData.detailedAnalysisPath !== undefined) {
+      updateData.detailedAnalysisPath = analysisData.detailedAnalysisPath;
+    }
+    if (analysisData.implementationKitComplete !== undefined || analysisData.implementationKitPath !== undefined) {
+      updateData.implementationKitPath = analysisData.implementationKitPath;
+    }
+
+    const [assessment] = await db
+      .update(assessments)
+      .set(updateData)
+      .where(eq(assessments.id, id))
       .returning();
     return assessment;
   }

@@ -195,7 +195,7 @@ echo "8️⃣ Verifying rollback..."
 # Backend health check
 echo "Checking backend health..."
 sleep 10
-if curl -s -f "http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health" > /dev/null; then
+if curl -s -f "https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health" > /dev/null; then
     echo "✅ Backend health check passed"
 else
     echo "❌ Backend health check failed"

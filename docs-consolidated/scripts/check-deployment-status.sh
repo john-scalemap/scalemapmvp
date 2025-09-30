@@ -6,7 +6,7 @@
 export AWS_REGION="eu-west-1"
 export ECS_CLUSTER_NAME="scalemap-cluster"
 export ECS_SERVICE_NAME="ApiService"
-export BACKEND_ENDPOINT="http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com"
+export BACKEND_ENDPOINT="https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com"
 
 echo "🔍 ScaleMap Deployment Status Check"
 echo "===================================="

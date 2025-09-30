@@ -430,7 +430,7 @@ describe('Concurrent Assessment Processing Capabilities', () => {
   describe('System Performance Under Load', () => {
     test('should maintain database consistency under concurrent operations', async () => {
       // Perform various operations concurrently across all assessments
-      const mixedOperations = [];
+      const mixedOperations: Promise<any>[] = [];
 
       assessmentIds.forEach((assessmentId, index) => {
         const authToken = authTokens[index];

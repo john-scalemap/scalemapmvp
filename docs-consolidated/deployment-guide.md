@@ -1,7 +1,7 @@
 # ScaleMap Deployment Guide - Docker First Approach
 
 **Status:** Authoritative
-**Last Updated:** 2025-09-29
+**Last Updated:** 2025-09-30
 **Process:** Docker → ECR → ECS (NO CodeBuild)
 
 ## 🎯 **Core Principle: Docker First**
@@ -43,8 +43,13 @@ export AWS_REGION=eu-west-1
 export AWS_ACCOUNT_ID=884337373956
 export ECR_REPOSITORY_URI=884337373956.dkr.ecr.eu-west-1.amazonaws.com/scalemap-api
 export ECS_CLUSTER_NAME=scalemap-cluster
-export ECS_SERVICE_NAME=ApiService
+export ECS_SERVICE_NAME=ScalemapComputeStack-ApiServiceC9037CF0-9G3nQxFShJ53
 ```
+
+### **⚠️ Updated Configuration (2025-09-30)**
+- **ECS Service Name:** Changed from `ApiService` to `ScalemapComputeStack-ApiServiceC9037CF0-9G3nQxFShJ53`
+- **Cognito Client ID:** Updated to `4oh46v98dsu1c8csu4tn6ddgq1` (no secret hash)
+- **Old problematic clients:** Deleted all Cognito clients with secret hash requirements
 
 ---
 
@@ -100,7 +105,7 @@ echo "Building version: $VERSION_TAG"
 
 # Build Docker image
 docker build \
-  --build-arg VITE_API_URL=http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com \
+  --build-arg VITE_API_URL=https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com \
   --build-arg VITE_COGNITO_USER_POOL_ID=eu-west-1_iGWQ7N6sH \
   --build-arg VITE_COGNITO_CLIENT_ID=6e7ct8tmbmhgvva2ngdn5hi6v1 \
   --build-arg VITE_AWS_REGION=eu-west-1 \
@@ -179,22 +184,38 @@ aws ecs describe-services \
 
 ## 5. **Frontend Deployment & Cache Management**
 
+### **⚠️ CRITICAL: Correct S3 Directory Structure (Updated 2025-09-30)**
+
+**ISSUE:** Frontend must be deployed to S3 root, NOT `/public/` subdirectory. CloudFront expects files at `/assets/index.js`, not `/public/assets/index.js`.
+
+**CORRECT PATH:** Docker extracts to `dist/public/` but S3 needs files at root.
+
 ### **Extract & Deploy Frontend**
 ```bash
-# Extract frontend from Docker image
+# Extract frontend from Docker image (extracts to ./frontend-dist/)
 docker create --name frontend-temp $ECR_REPOSITORY_URI:$VERSION_TAG
 docker cp frontend-temp:/app/dist/public ./frontend-dist
 docker rm frontend-temp
 
-# Verify frontend build
+# ✅ VERIFY CORRECT STRUCTURE (files at root, not nested in /public/)
 ls -la ./frontend-dist/
+# Expected output:
+# assets/           <- JS/CSS/fonts here
+# index.html        <- HTML at root
+# Should NOT see: public/assets/ (nested structure is WRONG)
+
+# Verify frontend build has correct API URL and Cognito config
+echo "Checking embedded configuration..."
+grep -o "scalem-scale[^\"]*elb\.amazonaws\.com" ./frontend-dist/assets/*.js | head -1
 grep -q "eu-west-1_iGWQ7N6sH" ./frontend-dist/assets/*.js && \
   echo "✓ Cognito config found" || echo "✗ Cognito config missing"
+grep -q "4oh46v98dsu1c8csu4tn6ddgq1" ./frontend-dist/assets/*.js && \
+  echo "✓ Correct client ID found" || echo "✗ Wrong client ID!"
 
 # Upload to S3 with cache control
 export S3_BUCKET=scalemap-frontend-prod-884337373956
 
-# Upload assets with long cache (1 year)
+# Upload assets (JS/CSS/fonts) with long cache (1 year)
 aws s3 sync ./frontend-dist s3://$S3_BUCKET/ \
   --delete \
   --cache-control "public,max-age=31536000,immutable" \
@@ -206,14 +227,26 @@ aws s3 sync ./frontend-dist s3://$S3_BUCKET/ \
   --exclude "*" \
   --include "*.html"
 
-# Invalidate CloudFront cache
+# ✅ VERIFY S3 STRUCTURE (CRITICAL - prevents old frontend from being served)
+echo "Verifying S3 structure..."
+aws s3 ls s3://$S3_BUCKET/ --recursive | head -20
+# Expected: assets/index-*.js, index.html
+# WRONG: public/assets/index-*.js, public/index.html
+
+# Invalidate CloudFront cache (use /* for full invalidation on major changes)
 export CLOUDFRONT_DISTRIBUTION_ID=E1OGYBMF9QDMX9
 aws cloudfront create-invalidation \
   --distribution-id $CLOUDFRONT_DISTRIBUTION_ID \
-  --paths "/*.html" "/index.html" "/"
+  --paths "/*"
+
+# Wait for invalidation (optional but recommended)
+echo "Waiting for CloudFront cache invalidation..."
+sleep 30
 
 # Clean up
 rm -rf ./frontend-dist
+
+echo "✅ Frontend deployment complete"
 ```
 
 ---

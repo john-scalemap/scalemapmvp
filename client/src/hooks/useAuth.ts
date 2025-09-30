@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
 import { cognitoAuth } from "@/lib/cognitoAuth";
+import { API_BASE_URL } from "@/lib/queryClient";
 
 export function useAuth() {
   const queryClient = useQueryClient();
@@ -13,7 +14,10 @@ export function useAuth() {
         throw new Error('No valid token');
       }
 
-      const response = await fetch('/api/auth/user', {
+      // Use absolute URL with API_BASE_URL to ensure correct backend endpoint
+      const fullUrl = `${API_BASE_URL}/api/auth/user`;
+
+      const response = await fetch(fullUrl, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

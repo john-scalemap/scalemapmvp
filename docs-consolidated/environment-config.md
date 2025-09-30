@@ -1,8 +1,17 @@
 # ScaleMap Environment Configuration Reference
 
 **Status:** Authoritative
-**Last Updated:** 2025-09-29
+**Last Updated:** 2025-09-30
 **Purpose:** Single source of truth for all environment variables and endpoint mappings
+
+## ⚠️ **CRITICAL: Configuration Synchronization**
+
+**ALL THREE** of these must have matching Cognito Client ID:
+1. `.env` file: `VITE_COGNITO_CLIENT_ID` and `COGNITO_CLIENT_ID`
+2. Docker build args: `--build-arg VITE_COGNITO_CLIENT_ID`
+3. AWS Secrets Manager: `/scalemap/prod/cognito-config` → `clientId`
+
+**Mismatch = "Invalid token" errors.** See [troubleshooting-guide.md](./troubleshooting-guide.md#-authentication-redirect-loop--invalid-token-errors)
 
 ## 🎯 **Configuration Hierarchy**
 
@@ -32,12 +41,13 @@ DATABASE_URL=postgresql://[username]:[password]@[rds-endpoint]:5432/scalemap?ssl
 OPENAI_API_KEY=[stored-in-secrets-manager]
 STRIPE_SECRET_KEY=[stored-in-secrets-manager]
 
-# Cognito Configuration (from AWS Secrets Manager)
+# Cognito Configuration (from AWS Secrets Manager: /scalemap/prod/cognito-config)
+# ⚠️ MUST match VITE_COGNITO_CLIENT_ID below
 COGNITO_USER_POOL_ID=eu-west-1_iGWQ7N6sH
 COGNITO_CLIENT_ID=4oh46v98dsu1c8csu4tn6ddgq1
 
 # S3 Configuration
-S3_BUCKET_NAME=scalemap-documents-production
+S3_BUCKET_NAME=scalemap-storage
 
 # Logging
 LOG_LEVEL=info
@@ -46,15 +56,20 @@ LOG_LEVEL=info
 ### **Frontend Environment Variables (Build-time)**
 ```bash
 # Cognito Configuration (PUBLIC - embedded in build)
+# ⚠️ UPDATED 2025-09-30: Changed to client WITHOUT secret hash requirement
 VITE_COGNITO_USER_POOL_ID=eu-west-1_iGWQ7N6sH
-VITE_COGNITO_CLIENT_ID=6e7ct8tmbmhgvva2ngdn5hi6v1
+VITE_COGNITO_CLIENT_ID=4oh46v98dsu1c8csu4tn6ddgq1  # NO SECRET HASH
 VITE_AWS_REGION=eu-west-1
 
 # Stripe Configuration (PUBLIC - embedded in build)
 VITE_STRIPE_PUBLIC_KEY=pk_test_51S9UtWPMQGIPehV3Y1s3L9UT9UoF5IP6vNcE3a93cS2Quzf6WiiDywwVVc3vGAOfYuC3FqxduxwX0hV7uRXsqM4H00KDbCClOA
 
 # API Endpoint (PUBLIC - embedded in build)
-VITE_API_URL=http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com
+# ⚠️ CRITICAL: Must be absolute URL, used by useAuth.ts and queryClient.ts
+VITE_API_URL=https://scalem-scale-rrvivslk5gxy-832498527.eu-west-1.elb.amazonaws.com
+
+# Build Version (injected at build time)
+VITE_BUILD_VERSION=${VERSION_TAG}
 
 # Environment Identifier
 VITE_ENVIRONMENT=production
@@ -78,15 +93,16 @@ OPENAI_API_KEY=sk-...  # Your development OpenAI key
 STRIPE_SECRET_KEY=sk_test_...  # Stripe test key
 
 # Cognito Configuration (Same as production for consistency)
+# ⚠️ UPDATED 2025-09-30: Use client without secret hash
 COGNITO_USER_POOL_ID=eu-west-1_iGWQ7N6sH
-COGNITO_CLIENT_ID=6e7ct8tmbmhgvva2ngdn5hi6v1
+COGNITO_CLIENT_ID=4oh46v98dsu1c8csu4tn6ddgq1
 
 # Frontend Development
 VITE_COGNITO_USER_POOL_ID=eu-west-1_iGWQ7N6sH
-VITE_COGNITO_CLIENT_ID=6e7ct8tmbmhgvva2ngdn5hi6v1
+VITE_COGNITO_CLIENT_ID=4oh46v98dsu1c8csu4tn6ddgq1  # NO SECRET HASH
 VITE_AWS_REGION=eu-west-1
 VITE_STRIPE_PUBLIC_KEY=pk_test_51S9UtWPMQGIPehV3Y1s3L9UT9UoF5IP6vNcE3a93cS2Quzf6WiiDywwVVc3vGAOfYuC3FqxduxwX0hV7uRXsqM4H00KDbCClOA
-VITE_API_URL=http://localhost:5000
+VITE_API_URL=http://localhost:5000  # Local backend
 VITE_ENVIRONMENT=development
 
 # Logging
@@ -103,7 +119,7 @@ LOG_LEVEL=debug
 FRONTEND_URL=https://d2nr28qnjfjgb5.cloudfront.net
 
 # Backend API (Application Load Balancer)
-API_URL=http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com
+API_URL=https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com
 
 # Health Check Endpoints
 HEALTH_CHECK_URL=$API_URL/health
@@ -275,7 +291,7 @@ grep -r "localhost\|127.0.0.1" dist/
 # Should show no results in production build
 
 # Rebuild with correct API URL
-VITE_API_URL=http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com npm run build
+VITE_API_URL=https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com npm run build
 ```
 
 ### **Issue: Cognito secret hash error**

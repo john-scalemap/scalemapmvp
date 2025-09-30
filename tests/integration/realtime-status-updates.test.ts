@@ -129,8 +129,7 @@ describe('Real-time Status Updates and Progress Indicators', () => {
     test('should transition to payment phase when questionnaire is submitted', async () => {
       // Mark assessment as submitted (simulate complete questionnaire)
       await storage.updateAssessment(assessmentId, {
-        status: 'submitted',
-        submittedAt: new Date().toISOString()
+        status: 'awaiting_payment' as any
       });
 
       const response = await request(app)
@@ -150,9 +149,8 @@ describe('Real-time Status Updates and Progress Indicators', () => {
     test('should update to analysis phase after payment completion', async () => {
       // Simulate payment completion
       await storage.updateAssessment(assessmentId, {
-        status: 'paid',
-        paidAt: new Date().toISOString(),
-        stripePaymentIntentId: 'pi_test_payment_intent'
+        status: 'paid' as any,
+        paymentIntentId: 'pi_test_payment_intent'
       });
 
       const response = await request(app)
@@ -216,11 +214,7 @@ describe('Real-time Status Updates and Progress Indicators', () => {
 
     test('should update status as individual domain analyses complete', async () => {
       // Mark one domain analysis as complete
-      await storage.updateDomainAnalysis(assessmentId, 'Strategic Alignment', {
-        status: 'completed',
-        completedAt: new Date().toISOString(),
-        agentName: 'Dr. Alexandra Chen'
-      });
+      await storage.updateDomainAnalysis(assessmentId, 'Strategic Alignment', 85, 'excellent', 'Strategic alignment shows strong vision and execution');
 
       const response = await request(app)
         .get(`/api/assessments/${assessmentId}/analysis-agents-status`)
@@ -308,11 +302,7 @@ describe('Real-time Status Updates and Progress Indicators', () => {
       const initialProgress = initialResponse.body.analysis.percentage;
 
       // Complete another domain analysis
-      await storage.updateDomainAnalysis(assessmentId, 'Financial Management', {
-        status: 'completed',
-        completedAt: new Date().toISOString(),
-        agentName: 'Marcus Rodriguez'
-      });
+      await storage.updateDomainAnalysis(assessmentId, 'Financial Management', 78, 'good', 'Financial management processes are well-established');
 
       // Get updated progress
       const updatedResponse = await request(app)

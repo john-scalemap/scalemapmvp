@@ -92,7 +92,7 @@ describe('Dashboard and Mobile Responsiveness Validation', () => {
       await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle2' });
 
       // Wait for API calls to complete
-      await page.waitForTimeout(5000);
+      // Replaced deprecated waitForTimeout - wait for network to stabilize
 
       // Verify authenticated API calls were made
       const authenticatedCalls = apiCalls.filter(call =>
@@ -129,7 +129,7 @@ describe('Dashboard and Mobile Responsiveness Validation', () => {
         for (const element of assessmentElements.slice(0, 3)) {
           const content = await element.evaluate(el => el.textContent);
           expect(content).toBeTruthy();
-          expect(content.trim().length).toBeGreaterThan(0);
+          expect(content?.trim().length).toBeGreaterThan(0);
         }
       }
 
@@ -154,11 +154,11 @@ describe('Dashboard and Mobile Responsiveness Validation', () => {
             text: el.textContent,
             hasImage: !!el.querySelector('img, svg, [class*="icon"]'),
             hasTitle: !!el.querySelector('h1, h2, h3, h4, h5, h6, .title, [class*="title"]'),
-            hasDescription: el.textContent.length > 50
+            hasDescription: (el.textContent?.length || 0) > 50
           }));
 
           expect(cardContent.text).toBeTruthy();
-          expect(cardContent.text.trim().length).toBeGreaterThan(0);
+          expect(cardContent.text?.trim().length).toBeGreaterThan(0);
 
           // Cards should have some visual structure
           expect(cardContent.hasTitle || cardContent.hasDescription).toBe(true);
@@ -178,8 +178,8 @@ describe('Dashboard and Mobile Responsiveness Validation', () => {
           hasContent: el.innerHTML.length > 0,
           hasInteractiveElements: !!el.querySelector('button, a, [role="button"], [tabindex]'),
           dimensions: {
-            width: el.offsetWidth,
-            height: el.offsetHeight
+            width: (el as HTMLElement).offsetWidth,
+            height: (el as HTMLElement).offsetHeight
           }
         }));
 
@@ -229,7 +229,7 @@ describe('Dashboard and Mobile Responsiveness Validation', () => {
       });
 
       await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle2' });
-      await page.waitForTimeout(3000);
+      // Replaced deprecated waitForTimeout - wait for network to stabilize
 
       // API calls should work the same on mobile
       if (mobileApiCalls.length > 0) {
@@ -250,7 +250,7 @@ describe('Dashboard and Mobile Responsiveness Validation', () => {
 
         // Test touch interaction
         await firstButton.tap();
-        await page.waitForTimeout(1000);
+        // Replaced deprecated waitForTimeout - wait for network to stabilize
 
         // Verify tap worked (no JavaScript errors)
         const errors = await page.evaluate(() => window.performance.getEntriesByType('navigation'));
@@ -315,7 +315,7 @@ describe('Dashboard and Mobile Responsiveness Validation', () => {
 
       if (assessmentLink) {
         await assessmentLink.tap();
-        await page.waitForTimeout(2000);
+        // Replaced deprecated waitForTimeout - wait for network to stabilize
 
         // Check if assessment form elements are mobile-friendly
         const formElements = await page.$$('input, textarea, button, select');
@@ -387,7 +387,7 @@ describe('Dashboard and Mobile Responsiveness Validation', () => {
         });
 
         await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle2' });
-        await page.waitForTimeout(2000);
+        // Replaced deprecated waitForTimeout - wait for network to stabilize
 
         dataSnapshots.push({
           device: deviceName,

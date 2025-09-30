@@ -46,7 +46,7 @@ export FRONTEND_API_ENDPOINT=$(curl -s https://d2nr28qnjfjgb5.cloudfront.net/ass
 echo "Frontend API Endpoint: $FRONTEND_API_ENDPOINT"
 
 # Actual backend endpoint
-export BACKEND_ENDPOINT="http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com"
+export BACKEND_ENDPOINT="https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com"
 
 echo "Actual Backend Endpoint: $BACKEND_ENDPOINT"
 ```
@@ -108,7 +108,7 @@ set -e  # Exit on any error
 # Configuration
 export VERSION_TAG="v$(date +%Y%m%d-%H%M%S)"
 export ECR_URI="884337373956.dkr.ecr.eu-west-1.amazonaws.com/scalemap-api"
-export BACKEND_ENDPOINT="http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com"
+export BACKEND_ENDPOINT="https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com"
 
 echo "🚀 Starting synchronized deployment: $VERSION_TAG"
 
@@ -328,7 +328,7 @@ check_env_sync
 NODE_ENV=production
 
 # Frontend Configuration (Build-time)
-VITE_API_URL=http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com
+VITE_API_URL=https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com
 VITE_COGNITO_USER_POOL_ID=eu-west-1_iGWQ7N6sH
 VITE_COGNITO_CLIENT_ID=6e7ct8tmbmhgvva2ngdn5hi6v1
 VITE_AWS_REGION=eu-west-1

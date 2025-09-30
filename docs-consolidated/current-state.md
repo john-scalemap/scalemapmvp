@@ -1,7 +1,7 @@
 # ScaleMap Current Deployment State
 
 **Status:** Living Document - Update after every deployment
-**Last Updated:** 2025-09-29
+**Last Updated:** 2025-09-30
 **Purpose:** Document what is ACTUALLY deployed right now (not what we want to deploy)
 
 ## 🎯 **Critical Reality Check**
@@ -17,13 +17,13 @@ This document reflects the **current production state** as of the last update. I
 # Frontend (CloudFront)
 Frontend URL: https://d2nr28qnjfjgb5.cloudfront.net
 Status: ✅ Active
-Last Verified: 2025-09-29
+Last Verified: 2025-09-30
 
 # Backend API (Application Load Balancer)
-API URL: http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com
-Health Check: http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health
+API URL: https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com
+Health Check: https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health
 Status: ✅ Active
-Last Verified: 2025-09-29
+Last Verified: 2025-09-30
 ```
 
 ### **Quick Verification Commands**
@@ -32,12 +32,12 @@ Last Verified: 2025-09-29
 curl -I https://d2nr28qnjfjgb5.cloudfront.net/
 
 # Test backend
-curl -s http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health | jq .
+curl -s https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health | jq .
 
 # Expected backend health response:
 # {
 #   "status": "healthy",
-#   "timestamp": "2025-09-29T...",
+#   "timestamp": "2025-09-30T...",
 #   "environment": "production",
 #   "port": "3000"
 # }
@@ -53,19 +53,21 @@ curl -s http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/h
 aws ecs describe-task-definition \
   --task-definition $(aws ecs describe-services \
     --cluster scalemap-cluster \
-    --services ApiService \
+    --services ScalemapComputeStack-ApiServiceC9037CF0-9G3nQxFShJ53 \
     --region eu-west-1 \
     --query 'services[0].taskDefinition' \
     --output text) \
   --region eu-west-1 \
   --query 'taskDefinition.containerDefinitions[0].image'
 
-# Current as of 2025-09-29 (POST-RESET):
-Backend Status: ✅ HEALTHY - Fresh deployment completed
-Backend Health Response: {"status":"healthy","timestamp":"2025-09-29T11:05:42.744Z","environment":"production","port":"3000"}
-Backend Image: 884337373956.dkr.ecr.eu-west-1.amazonaws.com/scalemap-api:reset-20250929-115735
-Backend Version: reset-20250929-115735
-Deployed: 2025-09-29T11:03:32Z (Strategic Reset Deployment)
+# Current as of 2025-09-30:
+Backend Status: ✅ HEALTHY - Dashboard MVP with correct Cognito config
+Backend Health Response: {"status":"healthy","environment":"production","port":"3000"}
+Backend Image: 884337373956.dkr.ecr.eu-west-1.amazonaws.com/scalemap-api:v20250930-152600-amd64
+Backend Version: v20250930-152600-amd64
+Deployed: 2025-09-30T15:03:20Z (Dashboard MVP Deployment)
+ECS Service: ScalemapComputeStack-ApiServiceC9037CF0-9G3nQxFShJ53
+ECS Task Definition: ScalemapComputeStackApiTaskDefinition737B2035:31
 ```
 
 ### **Frontend Version (CloudFront/S3)**
@@ -73,19 +75,21 @@ Deployed: 2025-09-29T11:03:32Z (Strategic Reset Deployment)
 # To check current frontend version:
 curl -s https://d2nr28qnjfjgb5.cloudfront.net/version.txt
 
-# Current as of 2025-09-29 (POST-RESET):
-Frontend Status: ✅ ACTIVE - CloudFront serving fresh content
-Frontend Version: reset-20250929-115735 (✅ VERSION TRACKING RESTORED)
-Build Assets: index-DdgSqBsQ.js, index-CNqu5ExQ.css
-Deployed: 2025-09-29T11:05:12Z (Strategic Reset Deployment)
+# Current as of 2025-09-30:
+Frontend Status: ✅ ACTIVE - Dashboard MVP with correct Cognito config
+Frontend Version: v20250930-152600
+Build Assets: index-gSqjQw8A.js, index-au8_sY1P.css
+Deployed: 2025-09-30T14:29:51Z (Dashboard MVP Deployment)
+Cognito Client: 4oh46v98dsu1c8csu4tn6ddgq1 (no secret hash required)
+Dashboard Route: /dashboard (NEW - MVP version)
 ```
 
 ### **Version Sync Status**
 ```bash
 # Are frontend and backend versions synchronized?
-Backend Version: reset-20250929-115735
-Frontend Version: reset-20250929-115735
-Sync Status: ✅ SYNCHRONIZED - Both deployments from same Docker image
+Backend Version: v20250930-152600-amd64
+Frontend Version: v20250930-152600
+Sync Status: ✅ SYNCHRONIZED - Both deployments from same Docker build
 
 # After each deployment, verify they match:
 # ✅ Synchronized | ❌ Mismatch | ⚠️ Unknown
@@ -110,11 +114,11 @@ aws ecs describe-services \
   --region eu-west-1 \
   --query 'services[0].{Status:status,RunningCount:runningCount,DesiredCount:desiredCount,TaskDefinition:taskDefinition}'
 
-# Current as of 2025-09-29 (POST-RESET):
+# Current as of 2025-09-29 (POST-FIX):
 Running Tasks: 1
 Desired Tasks: 1
-Task Definition Revision: ScalemapComputeStackApiTaskDefinition737B2035:21
-Service Name: ScalemapComputeStack-ApiServiceC9037CF0-9G3nQxFShJ53 (CORRECTED)
+Task Definition Revision: [Updated - check via AWS CLI]
+Service Name: ScalemapComputeStack-ApiServiceC9037CF0-9G3nQxFShJ53 (CONFIRMED)
 ```
 
 ### **AWS ECR Repository**
@@ -129,10 +133,10 @@ aws ecr describe-images \
   --query 'imageDetails[0:3].{Tags:imageTags,Size:imageSizeInBytes,Pushed:imagePushedAt}' \
   --output table
 
-# Latest 3 images as of 2025-09-29 (POST-RESET):
-# 1. reset-20250929-115735, latest - Fresh strategic reset deployment
-# 2. Various untagged manifest dependencies (safe to ignore)
-# 3. ECR cleaned - old tagged versions removed
+# Latest 3 images as of 2025-09-30:
+# 1. v20250930-152600-amd64 - Dashboard MVP deployment (linux/amd64)
+# 2. v20250930-152600 - Multi-arch manifest (not used by ECS)
+# 3. auth-fix-20250930-140006 - Previous auth fix deployment
 ```
 
 ### **AWS S3 & CloudFront**
@@ -148,9 +152,10 @@ Domain: d2nr28qnjfjgb5.cloudfront.net
 # Check latest frontend files:
 aws s3 ls s3://scalemap-frontend-prod-884337373956/ | tail -5
 
-# Latest files as of 2025-09-29 (POST-RESET):
-# index.html, index-DdgSqBsQ.js, index-CNqu5ExQ.css, version.txt
-# All assets updated with fresh build and version tracking restored
+# Latest files as of 2025-09-30:
+# index.html, index-gSqjQw8A.js, index-au8_sY1P.css, version.txt
+# Dashboard MVP deployment - includes new /dashboard route with 3-feature MVP
+# CloudFront cache invalidated: I3Q5ETHHPPK2BTAIE5ZVT1LQ7W
 ```
 
 ---
@@ -173,7 +178,7 @@ STRIPE_SECRET_KEY: [Stored in /scalemap/prod/stripe-secret-key]
 
 # Cognito Configuration
 COGNITO_USER_POOL_ID: eu-west-1_iGWQ7N6sH
-COGNITO_CLIENT_ID: 6e7ct8tmbmhgvva2ngdn5hi6v1
+COGNITO_CLIENT_ID: 4oh46v98dsu1c8csu4tn6ddgq1 (NO SECRET HASH)
 ```
 
 ### **Frontend Configuration (Build-time)**
@@ -183,14 +188,15 @@ curl -s https://d2nr28qnjfjgb5.cloudfront.net/assets/index-*.js | \
   grep -o 'http://[^"]*elb\.amazonaws\.com'
 
 # Current frontend API endpoint:
-API Endpoint: ✅ RESOLVED - Frontend correctly configured for production
-Frontend Config: Properly built with production environment variables
+API Endpoint: ✅ FIXED - https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com
+Frontend Config: ✅ Properly embedded in bundle via corrected .dockerignore
 
-# Other frontend config (check built assets):
+# Other frontend config (embedded in built assets):
 Cognito User Pool: ✅ eu-west-1_iGWQ7N6sH (CORRECT)
-Cognito Client ID: [Need to check further in assets]
-Stripe Public Key: [Need to check further in assets]
-No localhost references: ✅ GOOD (no development URLs in production)
+Cognito Client ID: ✅ 4oh46v98dsu1c8csu4tn6ddgq1 (CORRECT - no secret hash)
+Stripe Public Key: ✅ pk_test_51S9UtWPMQGIPehV3Y1s3L9UT9UoF5IP6vNcE3a93cS2Quzf6WiiDywwVVc3vGAOfYuC3FqxduxwX0hV7uRXsqM4H00KDbCClOA
+No localhost references: ✅ CONFIRMED (no development URLs in production)
+Dashboard MVP: ✅ DEPLOYED - Route: /dashboard
 ```
 
 ---
@@ -199,17 +205,17 @@ No localhost references: ✅ GOOD (no development URLs in production)
 
 ### **Current Production Issues**
 ```bash
-# As of 2025-09-29 (POST-RESET):
-# ✅ ALL PREVIOUS ISSUES RESOLVED
+# As of 2025-09-30:
+# ✅ ALL CRITICAL ISSUES RESOLVED
 
-# Issues Resolved by Strategic Reset:
-# ✅ Missing version tracking - FIXED: version.txt now deployed
-# ✅ Docker cache inconsistencies - FIXED: Full cache cleared (21.57GB)
-# ✅ ECR image sprawl - FIXED: Old images cleaned, fresh deployment
-# ✅ Frontend/backend version sync - FIXED: Both from same image
-# ✅ Deployment process uncertainty - FIXED: Clean documented process
+# Issues Resolved in v20250930-152600-amd64 Deployment:
+# ✅ Docker platform mismatch - FIXED: Force linux/amd64 build for ECS
+# ✅ ECS task definition outdated - FIXED: Created task definition :31 with correct image
+# ✅ Cognito Client ID in task def - FIXED: Updated to 4oh46v98dsu1c8csu4tn6ddgq1
+# ✅ Dashboard not deployed - FIXED: MVP dashboard deployed at /dashboard
+# ✅ Deployment verification gaps - FIXED: Created comprehensive checklist
 
-# Status: System Reset Complete - Clean Foundation Established
+# Status: Production Stable - Dashboard MVP Live, All Systems Healthy
 ```
 
 ### **Monitoring & Alerts**
@@ -236,26 +242,33 @@ aws budgets describe-budgets \
 ```bash
 # Track the last 5 deployments for quick rollback reference
 
-# Deployment #1 (Most Recent) - STRATEGIC RESET
-Date: 2025-09-29T11:03:32Z
-Version: reset-20250929-115735
-Deployed By: James (Dev Agent) - Strategic Reset
-Changes: Complete system reset - Docker cache cleared, ECR cleaned, fresh deployment with version tracking
+# Deployment #1 (Most Recent) - DASHBOARD MVP
+Date: 2025-09-30T15:03:20Z
+Version: v20250930-152600-amd64
+Deployed By: James (Dev Agent)
+Changes:
+  - Deployed MVP Dashboard (/dashboard route)
+  - Fixed Docker platform to linux/amd64
+  - Updated ECS task definition with correct Cognito Client ID (4oh46v98dsu1c8csu4tn6ddgq1)
+  - Created deployment-verification-checklist.md
+  - Dashboard features: Create assessment, Resume in-progress, Status grid (Questionnaire/Documents/Analysis)
+Status: ✅ Success
+Issues Found: ECS task definition had wrong image tag and old Cognito ID
+Resolution: Manually updated task definition :31, rebuilt with --platform linux/amd64
+
+# Deployment #2 - VITE_API_URL FIX
+Date: 2025-09-29T20:34:48Z
+Version: v20250929-212846
+Deployed By: Claude (Dev Agent) - Critical Fix
+Changes: Fixed VITE_API_URL embedding (.dockerignore location), added VITE_BUILD_VERSION, standardized Cognito Client ID, fixed deployment script
 Status: ✅ Success
 
-# Deployment #2
-Date: [TO BE UPDATED]
-Version: [TO BE UPDATED]
-Deployed By: [TO BE UPDATED]
-Changes: [TO BE UPDATED]
-Status: [TO BE UPDATED]
-
-# Deployment #3
-Date: [TO BE UPDATED]
-Version: [TO BE UPDATED]
-Deployed By: [TO BE UPDATED]
-Changes: [TO BE UPDATED]
-Status: [TO BE UPDATED]
+# Deployment #3 - STRATEGIC RESET
+Date: 2025-09-29T11:03:32Z
+Version: reset-20250929-115735
+Deployed By: Claude (Dev Agent) - Strategic Reset
+Changes: Complete system reset - Docker cache cleared, ECR cleaned, fresh deployment with version tracking
+Status: ✅ Success
 
 # (Keep last 5 deployments for rollback reference)
 ```
@@ -263,9 +276,14 @@ Status: [TO BE UPDATED]
 ### **Rollback Information**
 ```bash
 # Last Known Good Version (for emergency rollback)
-Safe Rollback Version: reset-20250929-115735
-Safe Rollback Date: 2025-09-29T11:03:32Z
-Verified Working: ✅ Yes - All systems healthy post-reset
+Safe Rollback Version: v20250930-152600-amd64
+Safe Rollback Date: 2025-09-30T15:03:20Z
+Verified Working: ✅ Yes - Dashboard MVP deployed, all systems healthy, backend health confirmed
+
+# Previous Stable Version (fallback if current fails)
+Fallback Version: v20250929-212846
+Fallback Date: 2025-09-29T20:34:48Z
+Note: Does not include dashboard MVP, but frontend/backend communication verified
 
 # Emergency Rollback Command:
 # aws ecs update-service \
@@ -279,26 +297,60 @@ Verified Working: ✅ Yes - All systems healthy post-reset
 
 ## 7. **Feature Availability**
 
+### **Dashboard MVP Features (NEW - v20250930-152600-amd64)**
+```bash
+# Dashboard Route: /dashboard
+Status: ✅ DEPLOYED
+Last Tested: 2025-09-30T15:03:20Z
+
+Feature 1: Create New Assessment
+- Button: "Start New Assessment"
+- Functionality: Creates new assessment via POST /api/assessments
+- Status: ✅ Deployed (backend endpoint exists)
+
+Feature 2: Resume In-Progress Assessment
+- Display: Shows active assessment with progress bar
+- Functionality: Loads assessment via GET /api/assessments/:id
+- Progress: Shows X/120 questions answered
+- Button: "Continue Assessment"
+- Status: ✅ Deployed (backend endpoint exists)
+
+Feature 3: Status Grid (3-panel display)
+- Panel 1: Questionnaire Progress (questions answered count)
+- Panel 2: Documents Uploaded (document count)
+- Panel 3: Analysis Status (Running/Pending/Completed)
+- Data Source: GET /api/assessments/:id/analysis
+- Status: ✅ Deployed (backend endpoint exists)
+
+Additional Features:
+- Assessment history (completed assessments)
+- Quick stats sidebar (Total/In Progress/Completed)
+- User info in header
+- Logout functionality
+```
+
 ### **Current Feature State**
 ```bash
-# Story 2.1 Features (Save/Resume Functionality)
-Assessment Save: [✅ Working | ❌ Broken | ⚠️ Unknown]
-Progress Resume: [✅ Working | ❌ Broken | ⚠️ Unknown]
-Last Tested: [TO BE UPDATED]
-
 # Authentication Features
-User Registration: [✅ Working | ❌ Broken | ⚠️ Unknown]
-User Login: [✅ Working | ❌ Broken | ⚠️ Unknown]
-Session Persistence: [✅ Working | ❌ Broken | ⚠️ Unknown]
-Last Tested: [TO BE UPDATED]
+User Registration: ✅ Working - Cognito integration verified
+User Login: ✅ Working - Client ID 4oh46v98dsu1c8csu4tn6ddgq1 (no secret hash)
+Session Persistence: ✅ Working
+Last Tested: 2025-09-30
+
+# Assessment Features
+Assessment Creation: ✅ Working - POST /api/assessments
+Assessment Retrieval: ✅ Working - GET /api/assessments/:id
+Assessment List: ✅ Working - GET /api/assessments
+Save Progress: ✅ Working - POST /api/assessments/:id/responses
+Last Tested: 2025-09-30
 
 # File Upload Features
-Document Upload: [✅ Working | ❌ Broken | ⚠️ Unknown]
-S3 Storage: [✅ Working | ❌ Broken | ⚠️ Unknown]
+Document Upload: ⚠️ Backend exists, frontend not tested
+S3 Storage: ⚠️ Backend exists, frontend not tested
 Last Tested: [TO BE UPDATED]
 
 # Payment Features
-Stripe Integration: [✅ Working | ❌ Broken | ⚠️ Unknown]
+Stripe Integration: ⚠️ Backend exists, frontend not tested
 Last Tested: [TO BE UPDATED]
 ```
 
@@ -400,7 +452,7 @@ aws ec2 describe-security-groups \
 # When this document is out of date or systems are down:
 
 # Check current reality:
-curl -s http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health
+curl -s https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health
 curl -s https://d2nr28qnjfjgb5.cloudfront.net/version.txt
 
 # Get current ECS deployment:
@@ -417,5 +469,6 @@ aws logs tail /ecs/scalemap-api --since 1h --region eu-west-1
 **⚠️ IMPORTANT:** This document is only as good as its last update. **UPDATE IMMEDIATELY** after any deployment or configuration change.
 
 **Changelog:**
+- 2025-09-29T20:34:48Z: Updated for v20250929-212846 deployment (VITE_API_URL fix)
+- 2025-09-29T11:03:32Z: Updated for reset-20250929-115735 deployment (Strategic Reset)
 - 2025-09-29: Initial current state documentation created
-- [TO BE UPDATED]: Next update

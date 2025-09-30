@@ -1,12 +1,13 @@
 # ScaleMap Troubleshooting Guide
 
 **Status:** Authoritative
-**Last Updated:** 2025-09-29
+**Last Updated:** 2025-09-30
 **Purpose:** Proven solutions for common deployment and operational issues
 
 ## 🎯 **Quick Issue Resolution**
 
 **Emergency Shortcuts:**
+- **Redirect loop / 401 errors:** [Jump to Authentication Redirect Loop](#-authentication-redirect-loop--invalid-token-errors)
 - **Frontend shows old version:** [Jump to Cache Issues](#cache-issues)
 - **Cognito secret hash error:** [Jump to Authentication Issues](#authentication-issues)
 - **API not responding:** [Jump to Backend Issues](#backend-issues)
@@ -16,6 +17,123 @@
 ---
 
 ## 1. **Authentication Issues**
+
+### **🚨 Authentication Redirect Loop / Invalid Token Errors**
+
+**Symptoms:**
+- Browser error: "Load cannot follow more than 20 redirections"
+- Console error: "Fetch API cannot load https://d2nr28qnjfjgb5.cloudfront.net/api/auth/user"
+- 401 error: `{"message":"Invalid token"}`
+- Login form shows "Invalid token" error after successful Cognito authentication
+
+**Root Causes & Complete Fix (2025-09-30):**
+
+This issue has **THREE** distinct problems that must ALL be fixed:
+
+#### **Problem 1: Frontend Making Relative API Calls**
+**Root Cause:** `useAuth.ts` was making relative API calls (`/api/auth/user`) which were being resolved against CloudFront domain instead of backend ALB, causing infinite redirect loops.
+
+**Location:** `client/src/hooks/useAuth.ts:16`
+
+**Fix Applied:**
+```typescript
+// BEFORE (BROKEN):
+const response = await fetch('/api/auth/user', {
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+
+// AFTER (FIXED):
+import { API_BASE_URL } from "@/lib/queryClient";
+const fullUrl = `${API_BASE_URL}/api/auth/user`;
+const response = await fetch(fullUrl, {
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+```
+
+**Also Updated:** `client/src/lib/queryClient.ts:4` - exported `API_BASE_URL` for reuse
+
+#### **Problem 2: Frontend Deployed to Wrong S3 Path**
+**Root Cause:** Docker image extracted frontend to nested `public/` directory, but deployment uploaded to `/public/assets/` instead of `/assets/`, causing CloudFront to serve old cached frontend.
+
+**Fix Applied:**
+```bash
+# Extract frontend from correct path in Docker image
+docker cp container:/app/dist/public ./frontend-dist
+
+# Upload to S3 root (not /public/ subdirectory)
+aws s3 sync ./frontend-dist s3://scalemap-frontend-prod-884337373956/ --delete
+
+# Result: Files at /assets/index.js, /index.html (not /public/assets/)
+```
+
+**Prevention:** Always verify S3 structure after upload:
+```bash
+aws s3 ls s3://scalemap-frontend-prod-884337373956/ --recursive | head -20
+# Should show: assets/index-*.js (NOT public/assets/index-*.js)
+```
+
+#### **Problem 3: Mismatched Cognito Client IDs**
+**Root Cause:** AWS Secrets Manager had **incorrect** Cognito Client ID (`2la2nlh20tabtsus90rd2g725a` - a deleted/old client) while frontend was using correct client ID (`4oh46v98dsu1c8csu4tn6ddgq1`). Backend JWT validation failed with "Invalid token" because audience check failed.
+
+**Location:** AWS Secrets Manager secret `/scalemap/prod/cognito-config`
+
+**Fix Applied:**
+```bash
+# Check current Secrets Manager value
+aws secretsmanager get-secret-value \
+  --secret-id /scalemap/prod/cognito-config \
+  --region eu-west-1 \
+  --query 'SecretString' --output text | jq .
+
+# Update with correct client ID (no secret hash)
+aws secretsmanager update-secret \
+  --secret-id /scalemap/prod/cognito-config \
+  --region eu-west-1 \
+  --secret-string '{
+    "userPoolId":"eu-west-1_iGWQ7N6sH",
+    "clientId":"4oh46v98dsu1c8csu4tn6ddgq1",
+    "region":"eu-west-1"
+  }'
+
+# Restart ECS to load new secret
+aws ecs update-service \
+  --cluster scalemap-cluster \
+  --service ScalemapComputeStack-ApiServiceC9037CF0-9G3nQxFShJ53 \
+  --force-new-deployment \
+  --region eu-west-1
+```
+
+**Prevention Checklist:**
+- ✅ Always use `API_BASE_URL` in frontend API calls (never relative URLs)
+- ✅ Verify S3 structure after frontend deployment (files at root, not `/public/`)
+- ✅ Ensure Secrets Manager, .env, and frontend build args all use same Cognito Client ID
+- ✅ Test authentication flow after deployment before marking as complete
+
+**Verification:**
+```bash
+# 1. Verify frontend has correct API URL
+curl -s https://d2nr28qnjfjgb5.cloudfront.net/assets/index-*.js | \
+  grep -o "scalem-scale[^\"]*elb\.amazonaws\.com"
+# Should show: scalem-scale-rrvivslk5gxy-832498527.eu-west-1.elb.amazonaws.com
+
+# 2. Verify Secrets Manager has correct client ID
+aws secretsmanager get-secret-value \
+  --secret-id /scalemap/prod/cognito-config \
+  --region eu-west-1 \
+  --query 'SecretString' --output text | jq -r '.clientId'
+# Should show: 4oh46v98dsu1c8csu4tn6ddgq1
+
+# 3. Test authentication flow
+# - Login should succeed without redirect loop
+# - No "Invalid token" errors in browser console
+# - API calls go to ALB (not CloudFront)
+```
+
+**Related Files Updated:**
+- `client/src/hooks/useAuth.ts` - Use absolute URLs
+- `client/src/lib/queryClient.ts` - Export API_BASE_URL
+- `.env` - Updated VITE_COGNITO_CLIENT_ID to 4oh46v98dsu1c8csu4tn6ddgq1
+- AWS Secrets Manager - Updated /scalemap/prod/cognito-config
 
 ### **🚨 Dashboard Not Loading After Login / Authentication Loop**
 
@@ -232,7 +350,7 @@ EOF
 
 # Solution 3: Check deployment script passes all build args:
 docker build \
-  --build-arg VITE_API_URL="http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com" \
+  --build-arg VITE_API_URL="https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com" \
   --build-arg VITE_COGNITO_USER_POOL_ID="eu-west-1_iGWQ7N6sH" \
   --build-arg VITE_COGNITO_CLIENT_ID="6e7ct8tmbmhgvva2ngdn5hi6v1" \
   --build-arg VITE_AWS_REGION="eu-west-1" \
@@ -546,7 +664,7 @@ curl http://localhost:5000/health
 curl -I -X OPTIONS \
   -H "Origin: https://d2nr28qnjfjgb5.cloudfront.net" \
   -H "Access-Control-Request-Method: POST" \
-  http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/api/health
+  https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/api/health
 
 # Should return Access-Control-Allow-Origin header
 
@@ -623,7 +741,7 @@ aws cloudfront create-invalidation --distribution-id E1OGYBMF9QDMX9 --paths "/*"
 
 # 4. Verify recovery
 sleep 60
-curl -f http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health
+curl -f https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health
 curl -f https://d2nr28qnjfjgb5.cloudfront.net/
 ```
 
@@ -657,9 +775,9 @@ echo "=================================="
 
 # Backend Health
 echo "🔧 Backend Status:"
-if curl -s -f http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health > /dev/null; then
+if curl -s -f https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health > /dev/null; then
     echo "✅ Backend API responding"
-    curl -s http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health | jq .
+    curl -s https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health | jq .
 else
     echo "❌ Backend API not responding"
 fi

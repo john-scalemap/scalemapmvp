@@ -1,14 +1,22 @@
 # ScaleMap Quick Reference
 
-**Last Updated:** 2025-09-29
+**Last Updated:** 2025-09-30
 **Purpose:** Instant access to common commands and procedures
+
+## ⚠️ **CRITICAL CONFIG SYNC CHECK**
+```bash
+# Before ANY deployment, verify Cognito Client ID matches everywhere:
+grep "VITE_COGNITO_CLIENT_ID" .env
+aws secretsmanager get-secret-value --secret-id /scalemap/prod/cognito-config --region eu-west-1 --query 'SecretString' --output text | jq -r '.clientId'
+# Both should show: 4oh46v98dsu1c8csu4tn6ddgq1
+```
 
 ## 🚀 **Emergency Commands**
 
 ### **Quick Health Check**
 ```bash
 # Backend
-curl -s http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health | jq .
+curl -s https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health | jq .
 
 # Frontend
 curl -I https://d2nr28qnjfjgb5.cloudfront.net/
@@ -91,7 +99,7 @@ aws cognito-idp update-user-pool-client \
 # Check what API endpoint frontend is using
 curl -s https://d2nr28qnjfjgb5.cloudfront.net/assets/index-*.js | grep -o 'http://[^"]*elb\.amazonaws\.com'
 
-# Should return: http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com
+# Should return: https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com
 ```
 
 ### **Build Issues**
@@ -112,7 +120,7 @@ docker run --rm -p 5000:5000 -e NODE_ENV=production scalemap-api:test
 
 ### **Production Frontend (Build-time)**
 ```bash
-export VITE_API_URL="http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com"
+export VITE_API_URL="https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com"
 export VITE_COGNITO_USER_POOL_ID="eu-west-1_iGWQ7N6sH"
 export VITE_COGNITO_CLIENT_ID="6e7ct8tmbmhgvva2ngdn5hi6v1"
 export VITE_AWS_REGION="eu-west-1"
@@ -148,7 +156,7 @@ aws logs tail /ecs/scalemap-api --since 10m --region eu-west-1
 ### **Network & Connectivity**
 ```bash
 # Test backend connectivity
-curl -v http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health
+curl -v https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health
 
 # Test database connectivity (requires DATABASE_URL)
 psql "$DATABASE_URL" -c "SELECT 1;"
@@ -174,7 +182,7 @@ aws ec2 describe-security-groups --filters "Name=group-name,Values=*scalemap*" -
 
 ```bash
 # Current backend health
-curl -s http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health | jq .status
+curl -s https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/health | jq .status
 
 # Current frontend version
 curl -s https://d2nr28qnjfjgb5.cloudfront.net/version.txt | head -1
@@ -186,7 +194,7 @@ aws ecs describe-services --cluster scalemap-cluster --services ApiService --reg
 aws ecs describe-task-definition --task-definition $(aws ecs describe-services --cluster scalemap-cluster --services ApiService --region eu-west-1 --query 'services[0].taskDefinition' --output text) --region eu-west-1 --query 'taskDefinition.containerDefinitions[0].image' --output text
 
 # Test authentication flow
-curl -X POST http://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/api/auth/test
+curl -X POST https://Scalem-Scale-RRvIVSLk5gxy-832498527.eu-west-1.elb.amazonaws.com/api/auth/test
 
 # CloudFront cache status
 aws cloudfront get-distribution --id E1OGYBMF9QDMX9 --query 'Distribution.Status'

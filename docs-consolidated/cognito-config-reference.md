@@ -1,7 +1,7 @@
 # Cognito Configuration Reference - Browser-Based Apps
 
 **Status:** Authoritative
-**Last Updated:** 2025-09-29
+**Last Updated:** 2025-09-30
 **Purpose:** Correct Cognito configuration for browser-based applications (NO secret hash required)
 
 ## 🚨 **Critical Rule: No Secret Hash for Browser Apps**
@@ -19,16 +19,16 @@ USER_POOL_ID=eu-west-1_iGWQ7N6sH
 REGION=eu-west-1
 USER_POOL_ARN=arn:aws:cognito-idp:eu-west-1:884337373956:userpool/eu-west-1_iGWQ7N6sH
 
-# App Client Configuration
-CLIENT_ID=6e7ct8tmbmhgvva2ngdn5hi6v1
-CLIENT_NAME=ScaleMapWebClient
+# App Client Configuration (ACTIVE - No Secret Hash)
+CLIENT_ID=4oh46v98dsu1c8csu4tn6ddgq1
+CLIENT_NAME=scalemap-web-client
 ```
 
 ### **App Client Settings (Critical)**
 ```json
 {
-  "ClientId": "6e7ct8tmbmhgvva2ngdn5hi6v1",
-  "ClientName": "ScaleMapWebClient",
+  "ClientId": "4oh46v98dsu1c8csu4tn6ddgq1",
+  "ClientName": "scalemap-web-client",
   "GenerateSecret": false,           // ✅ MUST be false for browser apps
   "RefreshTokenValidity": 30,
   "AccessTokenValidity": 24,
@@ -47,6 +47,13 @@ CLIENT_NAME=ScaleMapWebClient
   "AuthSessionValidity": 3           // 3 minutes for auth session
 }
 ```
+
+### **⚠️ Deleted Clients (2025-09-30)**
+The following clients were deleted as they had secret hash requirements or were unused:
+- `6e7ct8tmbmhgvva2ngdn5hi6v1` - ScaleMapWebClient (had secret hash - DELETED)
+- `2la2nlh20tabtsus90rd2g725a` - ScaleMapWebClient-Public (unused - DELETED)
+- `39ckvsl8b37n7aufbp1u85umu7` - ScaleMapWebClientNoSecret (duplicate - DELETED)
+- `6eao0fmgt3f43vvkpjr79131i6` - ScaleMapWebClientNoSecret (duplicate - DELETED)
 
 ---
 

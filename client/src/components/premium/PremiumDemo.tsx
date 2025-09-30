@@ -68,14 +68,14 @@ export function PremiumDemo() {
             <div className="space-y-4">
               <h3 className="font-semibold text-slate-700">States</h3>
               <div className="space-y-3">
-                <PremiumButton variant="primary" loading>
-                  Loading
+                <PremiumButton variant="primary">
+                  Active
                 </PremiumButton>
                 <PremiumButton variant="primary" disabled>
                   Disabled
                 </PremiumButton>
-                <PremiumButton variant="outline">
-                  Outline
+                <PremiumButton variant="ghost">
+                  Ghost
                 </PremiumButton>
               </div>
             </div>
