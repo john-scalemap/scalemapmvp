@@ -221,49 +221,47 @@ export default function Dashboard() {
           <div className="lg:col-span-2 space-y-6">
 
             {/* 1. CREATE NEW ASSESSMENT */}
-            {!activeAssessment && (
-              <Card className="border-2 border-primary/20 hover:border-primary/40 transition-colors">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-xl">
-                    <PlusIcon className="w-6 h-6 mr-2 text-primary" />
-                    Start New Assessment
-                  </CardTitle>
-                  <CardDescription>
-                    Begin your comprehensive growth bottleneck analysis
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <span className="flex items-center">
-                          <ClockIcon className="w-4 h-4 mr-1" />
-                          30-45 mins
-                        </span>
-                        <span className="flex items-center">
-                          <FileTextIcon className="w-4 h-4 mr-1" />
-                          120 questions
-                        </span>
-                      </div>
+            <Card className="border-2 border-primary/20 hover:border-primary/40 transition-colors">
+              <CardHeader>
+                <CardTitle className="flex items-center text-xl">
+                  <PlusIcon className="w-6 h-6 mr-2 text-primary" />
+                  Start New Assessment
+                </CardTitle>
+                <CardDescription>
+                  Begin your comprehensive growth bottleneck analysis
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                      <span className="flex items-center">
+                        <ClockIcon className="w-4 h-4 mr-1" />
+                        30-45 mins
+                      </span>
+                      <span className="flex items-center">
+                        <FileTextIcon className="w-4 h-4 mr-1" />
+                        120 questions
+                      </span>
                     </div>
-                    <Button
-                      size="lg"
-                      onClick={() => createAssessmentMutation.mutate()}
-                      disabled={createAssessmentMutation.isPending}
-                    >
-                      {createAssessmentMutation.isPending ? (
-                        <>
-                          <div className="animate-spin w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full mr-2" />
-                          Creating...
-                        </>
-                      ) : (
-                        'Start Assessment'
-                      )}
-                    </Button>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                  <Button
+                    size="lg"
+                    onClick={() => createAssessmentMutation.mutate()}
+                    disabled={createAssessmentMutation.isPending}
+                  >
+                    {createAssessmentMutation.isPending ? (
+                      <>
+                        <div className="animate-spin w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full mr-2" />
+                        Creating...
+                      </>
+                    ) : (
+                      'Start Assessment'
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* 2. RESUME IN-PROGRESS ASSESSMENT */}
             {activeAssessment && (
