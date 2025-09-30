@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -11,13 +12,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { ObjectUploader } from "@/components/ObjectUploader";
-import type { AssessmentQuestion } from "@shared/schema";
-import { 
+import type { AssessmentQuestion, AssessmentResponse } from "@shared/schema";
+import {
   ChevronLeftIcon,
   ChevronRightIcon,
   FileUpIcon,
   CheckIcon,
-  ClockIcon
+  ClockIcon,
+  SaveIcon
 } from "lucide-react";
 
 const OPERATIONAL_DOMAINS = [
@@ -195,8 +197,10 @@ export function AssessmentForm({ assessmentId, onComplete }: AssessmentFormProps
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [uploadedDocuments, setUploadedDocuments] = useState<string[]>([]);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   const form = useForm({
     defaultValues: {
@@ -205,17 +209,56 @@ export function AssessmentForm({ assessmentId, onComplete }: AssessmentFormProps
     }
   });
 
+  // Fetch existing responses for resume functionality
+  const { data: savedResponses = [] } = useQuery<AssessmentResponse[]>({
+    queryKey: [`/api/assessments/${assessmentId}/responses`],
+    enabled: !!assessmentId,
+  });
+
   // Get current domain and question
   const domain = OPERATIONAL_DOMAINS[currentDomain];
   const questions = DOMAIN_QUESTIONS[domain as keyof typeof DOMAIN_QUESTIONS] || [];
   const question = questions[currentQuestion];
-  
-  // Calculate progress
+
+  // Calculate progress (include saved responses)
   const totalQuestions = OPERATIONAL_DOMAINS.length * QUESTIONS_PER_DOMAIN;
   const currentQuestionIndex = currentDomain * QUESTIONS_PER_DOMAIN + currentQuestion;
-  const progress = Math.round((currentQuestionIndex / totalQuestions) * 100);
+  const totalAnswered = savedResponses.length + Object.keys(responses).filter(key => !savedResponses.find(r => r.questionId === key)).length;
+  const progress = Math.round((totalAnswered / totalQuestions) * 100);
 
-  // Load existing response
+  // Initialize position from saved responses on mount
+  useEffect(() => {
+    if (!initialLoadComplete && savedResponses.length > 0) {
+      // Convert saved responses to local state format
+      const loadedResponses: Record<string, any> = {};
+      savedResponses.forEach((response) => {
+        loadedResponses[response.questionId] = {
+          domainName: response.domainName,
+          questionId: response.questionId,
+          response: response.response,
+          score: response.score,
+        };
+      });
+      setResponses(loadedResponses);
+
+      // Calculate resume position - find first unanswered question
+      let found = false;
+      for (let d = 0; d < OPERATIONAL_DOMAINS.length && !found; d++) {
+        for (let q = 0; q < QUESTIONS_PER_DOMAIN && !found; q++) {
+          const key = `${OPERATIONAL_DOMAINS[d]}-${q}`;
+          if (!loadedResponses[key]) {
+            setCurrentDomain(d);
+            setCurrentQuestion(q);
+            found = true;
+          }
+        }
+      }
+
+      setInitialLoadComplete(true);
+    }
+  }, [savedResponses, initialLoadComplete]);
+
+  // Load existing response when navigating
   useEffect(() => {
     const key = `${domain}-${currentQuestion}`;
     if (responses[key]) {
@@ -230,19 +273,29 @@ export function AssessmentForm({ assessmentId, onComplete }: AssessmentFormProps
 
   // Save responses mutation
   const saveResponsesMutation = useMutation({
-    mutationFn: async (allResponses: any[]) => {
+    mutationFn: async ({ responses: allResponses, isExit }: { responses: any[], isExit?: boolean }) => {
       return await apiRequest("POST", `/api/assessments/${assessmentId}/responses`, {
         responses: allResponses
       });
     },
-    onSuccess: async (response) => {
+    onSuccess: async (response, variables) => {
       const data = await response.json();
-      toast({
-        title: "Responses Saved",
-        description: `Progress: ${data.progress}%`,
-      });
-      
-      if (data.progress >= 100) {
+
+      // Invalidate queries to refresh assessment list
+      queryClient.invalidateQueries({ queryKey: ["/api/assessments"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/assessments/${assessmentId}/responses`] });
+
+      if (variables.isExit) {
+        toast({
+          title: "Progress Saved",
+          description: `${data.progress}% complete. You can resume anytime.`,
+        });
+        setLocation('/dashboard');
+      } else if (data.progress >= 100) {
+        toast({
+          title: "Assessment Complete",
+          description: "All questions answered!",
+        });
         onComplete(assessmentId);
       }
     },
@@ -299,16 +352,26 @@ export function AssessmentForm({ assessmentId, onComplete }: AssessmentFormProps
     // Save current response
     const formData = form.getValues();
     const key = `${domain}-${currentQuestion}`;
-    
-    setResponses(prev => ({
-      ...prev,
+
+    const updatedResponses = {
+      ...responses,
       [key]: {
         domainName: domain,
         questionId: key,
         response: formData.response,
         score: parseInt(formData.score) || null,
       }
-    }));
+    };
+
+    setResponses(updatedResponses);
+
+    // Auto-save to backend on every Next
+    const allResponses = Object.values(updatedResponses).filter(r =>
+      !savedResponses.find(saved => saved.questionId === r.questionId)
+    );
+    if (allResponses.length > 0) {
+      saveResponsesMutation.mutate({ responses: allResponses, isExit: false });
+    }
 
     // Navigate to next question
     if (currentQuestion < QUESTIONS_PER_DOMAIN - 1) {
@@ -316,6 +379,38 @@ export function AssessmentForm({ assessmentId, onComplete }: AssessmentFormProps
     } else if (currentDomain < OPERATIONAL_DOMAINS.length - 1) {
       setCurrentDomain(prev => prev + 1);
       setCurrentQuestion(0);
+    }
+  };
+
+  const handleSaveAndExit = () => {
+    // Save current response if any
+    const formData = form.getValues();
+    const key = `${domain}-${currentQuestion}`;
+
+    const updatedResponses = {
+      ...responses,
+      [key]: {
+        domainName: domain,
+        questionId: key,
+        response: formData.response,
+        score: parseInt(formData.score) || null,
+      }
+    };
+
+    // Save all unsaved responses
+    const allResponses = Object.values(updatedResponses).filter(r =>
+      !savedResponses.find(saved => saved.questionId === r.questionId)
+    );
+
+    if (allResponses.length > 0) {
+      saveResponsesMutation.mutate({ responses: allResponses, isExit: true });
+    } else {
+      // No new responses to save, just navigate
+      toast({
+        title: "Progress Saved",
+        description: "You can resume your assessment anytime.",
+      });
+      setLocation('/dashboard');
     }
   };
 
@@ -329,9 +424,26 @@ export function AssessmentForm({ assessmentId, onComplete }: AssessmentFormProps
   };
 
   const handleSubmit = () => {
-    // Convert responses to array format
-    const allResponses = Object.values(responses);
-    saveResponsesMutation.mutate(allResponses);
+    // Save current response
+    const formData = form.getValues();
+    const key = `${domain}-${currentQuestion}`;
+
+    const updatedResponses = {
+      ...responses,
+      [key]: {
+        domainName: domain,
+        questionId: key,
+        response: formData.response,
+        score: parseInt(formData.score) || null,
+      }
+    };
+
+    // Submit all unsaved responses
+    const allResponses = Object.values(updatedResponses).filter(r =>
+      !savedResponses.find(saved => saved.questionId === r.questionId)
+    );
+
+    saveResponsesMutation.mutate({ responses: allResponses, isExit: false });
   };
 
   const isLastQuestion = currentDomain === OPERATIONAL_DOMAINS.length - 1 && 
@@ -352,9 +464,29 @@ export function AssessmentForm({ assessmentId, onComplete }: AssessmentFormProps
                 Question {currentQuestion + 1} of {QUESTIONS_PER_DOMAIN}
               </p>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-primary">{progress}%</div>
-              <div className="text-sm text-muted-foreground">Complete</div>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <div className="text-2xl font-bold text-primary">{progress}%</div>
+                <div className="text-sm text-muted-foreground">Complete</div>
+              </div>
+              <Button
+                variant="outline"
+                onClick={handleSaveAndExit}
+                disabled={saveResponsesMutation.isPending}
+                data-testid="button-save-exit"
+              >
+                {saveResponsesMutation.isPending ? (
+                  <>
+                    <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <SaveIcon className="w-4 h-4 mr-2" />
+                    Save & Exit
+                  </>
+                )}
+              </Button>
             </div>
           </div>
           

@@ -114,14 +114,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/assessments', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      
+
       // Get actual question count from database
       const allQuestions = await storage.getAllQuestions();
       const totalQuestions = allQuestions.length;
-      
+
       const assessment = await storage.createAssessment({
         userId,
-        status: "pending",
+        status: "in_progress",
         totalQuestions,
         amount: "7500.00", // £7,500
         currency: "GBP",
@@ -172,6 +172,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Assessment response routes
+  app.get('/api/assessments/:id/responses', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const assessmentId = req.params.id;
+
+      // Verify assessment belongs to user
+      const assessment = await storage.getAssessment(assessmentId);
+      if (!assessment || assessment.userId !== userId) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      const responses = await storage.getAssessmentResponses(assessmentId);
+      res.json(responses);
+    } catch (error) {
+      console.error("Error fetching responses:", error);
+      res.status(500).json({ message: "Failed to fetch responses" });
+    }
+  });
+
   app.post('/api/assessments/:id/responses', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -202,12 +221,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update assessment progress using actual total questions
       const totalResponses = await storage.getAssessmentResponses(assessmentId);
       const progress = Math.min(100, Math.round((totalResponses.length / (assessment.totalQuestions || 1)) * 100));
-      
+
       await storage.updateAssessmentProgress(
-        assessmentId, 
-        progress, 
+        assessmentId,
+        progress,
         totalResponses.length
       );
+
+      // Ensure status is in_progress if responses are being saved
+      if (assessment.status === 'pending') {
+        await storage.updateAssessmentStatus(assessmentId, "in_progress", progress);
+      }
 
       // If questionnaire is complete, check payment status before starting analysis
       if (progress >= 100) {
@@ -215,7 +239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (currentAssessment?.status === 'paid') {
           // Both payment and questionnaire are complete - start analysis
           await storage.updateAssessmentStatus(assessmentId, "analysis", 100);
-          
+
           // Start AI analysis process
           setTimeout(() => startAnalysisProcess(assessmentId), 1000);
           console.log(`Started analysis for assessment ${assessmentId} - payment and questionnaire complete`);
@@ -268,6 +292,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileSize,
         fileType,
         objectPath,
+      });
+
+      // Update document counter
+      const documents = await storage.getAssessmentDocuments(assessmentId);
+      await storage.updateAssessment(assessmentId, {
+        documentsUploaded: documents.length
       });
 
       res.json(document);
